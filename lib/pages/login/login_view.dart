@@ -22,7 +22,7 @@ class LoginView extends StatelessWidget {
 
     return LoginScaffold(
       appBar: AppBar(
-        leading: controller.loading ? null : const Center(child: BackButton()),
+        leading: null, // controller.loading ? null : const Center(child: BackButton()),
         automaticallyImplyLeading: !controller.loading,
         titleSpacing: !controller.loading ? 0 : null,
         title: Text(title),

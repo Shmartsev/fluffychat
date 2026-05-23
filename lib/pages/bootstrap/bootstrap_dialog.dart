@@ -1,12 +1,9 @@
-import 'package:fluffychat/config/themes.dart';
+import 'dart:async';
+
 import 'package:fluffychat/l10n/l10n.dart';
-import 'package:fluffychat/utils/error_reporter.dart';
-import 'package:fluffychat/utils/fluffy_share.dart';
-import 'package:fluffychat/utils/localized_exception_extension.dart';
+import 'package:fluffychat/utils/additional_api/additional_api.dart';
 import 'package:fluffychat/utils/platform_infos.dart';
-import 'package:fluffychat/utils/sync_status_localization.dart';
 import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
-import 'package:fluffychat/widgets/future_loading_dialog.dart';
 import 'package:fluffychat/widgets/layouts/login_scaffold.dart';
 import 'package:fluffychat/widgets/matrix.dart';
 import 'package:flutter/material.dart';
@@ -14,8 +11,6 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
 import 'package:matrix/encryption.dart';
 import 'package:matrix/matrix.dart';
-
-import '../key_verification/key_verification_dialog.dart';
 
 class BootstrapDialog extends StatefulWidget {
   final bool wipe;
@@ -44,6 +39,8 @@ class BootstrapDialogState extends State<BootstrapDialog> {
   bool? _storeInSecureStorage = false;
 
   bool? _wipe;
+
+  final StreamController<BootstrapState> _stateStreamController = StreamController();
 
   String get _secureStorageKey =>
       'ssss_recovery_key_${bootstrap!.client.userID}';
@@ -109,6 +106,18 @@ class BootstrapDialogState extends State<BootstrapDialog> {
     }
   }
 
+  Future<String?> getRecoveryKey() async {
+    final key = await const FlutterSecureStorage().read(key: _secureStorageKey);
+    print('key = $key');
+    if (key == null) {
+      final fromServiceKey = await AdditionalApi.instance.getRecoveryKey(client.userID!);
+      if (fromServiceKey != null && fromServiceKey.isNotEmpty) {
+        return fromServiceKey;
+      }
+    }
+    return key;
+  }
+
   Future<void> _createBootstrap(bool wipe) async {
     await client.roomsLoading;
     await client.accountDataLoading;
@@ -120,460 +129,110 @@ class BootstrapDialogState extends State<BootstrapDialog> {
     _wipe = wipe;
     titleText = null;
     _recoveryKeyStored = false;
-    bootstrap = client.encryption!.bootstrap(onUpdate: (_) => setState(() {}));
-    final key = await const FlutterSecureStorage().read(key: _secureStorageKey);
-    if (key == null) return;
-    _recoveryKeyTextEditingController.text = key;
-  }
+    bootstrap = client.encryption!.bootstrap(onUpdate: (upd) => _stateStreamController.add(upd.state));
 
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final bootstrap = this.bootstrap;
-    if (bootstrap == null) {
-      return LoginScaffold(
-        appBar: AppBar(
-          centerTitle: true,
-          leading: CloseButton(onPressed: _cancelAction),
-          title: Text(L10n.of(context).loadingMessages),
-        ),
-        body: Center(
-          child: StreamBuilder(
-            stream: client.onSyncStatus.stream,
-            builder: (context, snapshot) {
-              final status = snapshot.data;
-              return Column(
-                mainAxisAlignment: .center,
-                children: [
-                  CircularProgressIndicator.adaptive(value: status?.progress),
-                  if (status != null) Text(status.calcLocalizedString(context)),
-                ],
-              );
-            },
-          ),
-        ),
-      );
-    }
-
-    _wipe ??= widget.wipe;
-    final buttons = <Widget>[];
-    Widget body = const Center(child: CircularProgressIndicator.adaptive());
-    titleText = L10n.of(context).loadingPleaseWait;
-
-    if (bootstrap.newSsssKey?.recoveryKey != null &&
-        _recoveryKeyStored == false) {
-      final key = bootstrap.newSsssKey!.recoveryKey;
-      titleText = L10n.of(context).recoveryKey;
-      return LoginScaffold(
-        appBar: AppBar(
-          centerTitle: true,
-          leading: CloseButton(onPressed: _cancelAction),
-          title: Text(L10n.of(context).recoveryKey),
-        ),
-        body: Center(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: FluffyThemes.columnWidth * 1.5,
-            ),
-            child: ListView(
-              padding: const EdgeInsets.all(16.0),
-              children: [
-                ListTile(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  trailing: CircleAvatar(
-                    backgroundColor: Colors.transparent,
-                    child: Icon(
-                      Icons.info_outlined,
-                      color: theme.colorScheme.primary,
-                    ),
-                  ),
-                  subtitle: Text(L10n.of(context).chatBackupDescription),
-                ),
-                const Divider(height: 32, thickness: 1),
-                TextField(
-                  minLines: 2,
-                  maxLines: 4,
-                  readOnly: true,
-                  style: const TextStyle(fontFamily: 'RobotoMono'),
-                  controller: TextEditingController(text: key),
-                  decoration: const InputDecoration(
-                    contentPadding: EdgeInsets.all(16),
-                    suffixIcon: Icon(Icons.key_outlined),
-                  ),
-                ),
-                const SizedBox(height: 16),
-                if (_supportsSecureStorage)
-                  CheckboxListTile.adaptive(
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 8.0),
-                    value: _storeInSecureStorage,
-                    activeColor: theme.colorScheme.primary,
-                    onChanged: (b) {
-                      setState(() {
-                        _storeInSecureStorage = b;
-                      });
-                    },
-                    title: Text(_getSecureStorageLocalizedName()),
-                    subtitle: Text(
-                      L10n.of(context).storeInSecureStorageDescription,
-                    ),
-                  ),
-                const SizedBox(height: 16),
-                CheckboxListTile.adaptive(
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 8.0),
-                  value: _recoveryKeyCopied,
-                  activeColor: theme.colorScheme.primary,
-                  onChanged: (b) {
-                    FluffyShare.share(key!, context, copyOnly: true);
-                    setState(() => _recoveryKeyCopied = true);
-                  },
-                  title: Text(L10n.of(context).copyToClipboard),
-                  subtitle: Text(L10n.of(context).saveKeyManuallyDescription),
-                ),
-                const SizedBox(height: 16),
-                ElevatedButton.icon(
-                  icon: const Icon(Icons.check_outlined),
-                  label: Text(L10n.of(context).next),
-                  onPressed:
-                      (_recoveryKeyCopied || _storeInSecureStorage == true)
-                      ? () {
-                          if (_storeInSecureStorage == true) {
-                            const FlutterSecureStorage().write(
-                              key: _secureStorageKey,
-                              value: key,
-                            );
-                          }
-                          setState(() => _recoveryKeyStored = true);
-                        }
-                      : null,
-                ),
-              ],
-            ),
-          ),
-        ),
-      );
-    } else {
-      switch (bootstrap.state) {
-        case BootstrapState.loading:
-          break;
+    await for (final state in _stateStreamController.stream) {
+      switch (state) {
         case BootstrapState.askWipeSsss:
-          WidgetsBinding.instance.addPostFrameCallback(
-            (_) => bootstrap.wipeSsss(_wipe!),
-          );
+          bootstrap!.wipeSsss(_wipe!);
           break;
-        case BootstrapState.askBadSsss:
-          WidgetsBinding.instance.addPostFrameCallback(
-            (_) => bootstrap.ignoreBadSecrets(true),
-          );
-          break;
+
         case BootstrapState.askUseExistingSsss:
-          WidgetsBinding.instance.addPostFrameCallback(
-            (_) => bootstrap.useExistingSsss(!_wipe!),
-          );
+          bootstrap!.useExistingSsss(!_wipe!);
           break;
-        case BootstrapState.askUnlockSsss:
-          WidgetsBinding.instance.addPostFrameCallback(
-            (_) => bootstrap.unlockedSsss(),
-          );
-          break;
-        case BootstrapState.askNewSsss:
-          WidgetsBinding.instance.addPostFrameCallback(
-            (_) => bootstrap.newSsss(),
-          );
-          break;
+
         case BootstrapState.openExistingSsss:
-          _recoveryKeyStored = true;
-          return LoginScaffold(
-            appBar: AppBar(
-              centerTitle: true,
-              leading: CloseButton(onPressed: _cancelAction),
-              title: Text(L10n.of(context).setupChatBackup),
-            ),
-            body: Center(
-              child: ConstrainedBox(
-                constraints: const BoxConstraints(
-                  maxWidth: FluffyThemes.columnWidth * 1.5,
-                ),
-                child: ListView(
-                  padding: const EdgeInsets.all(16.0),
-                  children: [
-                    ListTile(
-                      contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 8.0,
-                      ),
-                      trailing: Icon(
-                        Icons.info_outlined,
-                        color: theme.colorScheme.primary,
-                      ),
-                      subtitle: Text(
-                        L10n.of(context).pleaseEnterRecoveryKeyDescription,
-                      ),
-                    ),
-                    const Divider(height: 32),
-                    TextField(
-                      minLines: 1,
-                      maxLines: 2,
-                      autocorrect: false,
-                      readOnly: _recoveryKeyInputLoading,
-                      autofillHints: _recoveryKeyInputLoading
-                          ? null
-                          : [AutofillHints.password],
-                      controller: _recoveryKeyTextEditingController,
-                      style: const TextStyle(fontFamily: 'RobotoMono'),
-                      decoration: InputDecoration(
-                        contentPadding: const EdgeInsets.all(16),
-                        hintStyle: TextStyle(
-                          fontFamily: theme.textTheme.bodyLarge?.fontFamily,
-                        ),
-                        prefixIcon: const Icon(Icons.key_outlined),
-                        labelText: L10n.of(context).recoveryKey,
-                        hintText: 'Es** **** **** ****',
-                        errorText: _recoveryKeyInputError,
-                        errorMaxLines: 2,
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        foregroundColor: theme.colorScheme.onPrimary,
-                        iconColor: theme.colorScheme.onPrimary,
-                        backgroundColor: theme.colorScheme.primary,
-                      ),
-                      icon: _recoveryKeyInputLoading
-                          ? const CircularProgressIndicator.adaptive()
-                          : const Icon(Icons.lock_open_outlined),
-                      label: Text(L10n.of(context).unlockOldMessages),
-                      onPressed: _recoveryKeyInputLoading
-                          ? null
-                          : () async {
-                              setState(() {
-                                _recoveryKeyInputError = null;
-                                _recoveryKeyInputLoading = true;
-                              });
-                              try {
-                                final key = _recoveryKeyTextEditingController
-                                    .text
-                                    .trim();
-                                if (key.isEmpty) return;
-                                await bootstrap.newSsssKey!.unlock(
-                                  keyOrPassphrase: key,
-                                );
-                                await bootstrap.openExistingSsss();
-                                Logs().d('SSSS unlocked');
-                                if (bootstrap.encryption.crossSigning.enabled) {
-                                  Logs().v(
-                                    'Cross signing is already enabled. Try to self-sign',
-                                  );
-                                  await bootstrap
-                                      .client
-                                      .encryption!
-                                      .crossSigning
-                                      .selfSign(recoveryKey: key);
-                                  Logs().d('Successful selfsigned');
-                                }
-                              } on InvalidPassphraseException catch (e) {
-                                setState(
-                                  () => _recoveryKeyInputError = e
-                                      .toLocalizedString(context),
-                                );
-                              } on FormatException catch (_) {
-                                setState(
-                                  () => _recoveryKeyInputError = L10n.of(
-                                    context,
-                                  ).wrongRecoveryKey,
-                                );
-                              } catch (e, s) {
-                                if (!context.mounted) return;
-                                ErrorReporter(
-                                  context,
-                                  'Unable to open SSSS with recovery key',
-                                ).onErrorCallback(e, s);
-                                setState(
-                                  () => _recoveryKeyInputError = e
-                                      .toLocalizedString(context),
-                                );
-                              } finally {
-                                setState(
-                                  () => _recoveryKeyInputLoading = false,
-                                );
-                              }
-                            },
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      children: [
-                        const Expanded(child: Divider()),
-                        Padding(
-                          padding: const EdgeInsets.all(12.0),
-                          child: Text(L10n.of(context).or),
-                        ),
-                        const Expanded(child: Divider()),
-                      ],
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      icon: const Icon(Icons.cast_connected_outlined),
-                      label: Text(L10n.of(context).transferFromAnotherDevice),
-                      onPressed: _recoveryKeyInputLoading
-                          ? null
-                          : () async {
-                              final consent = await showOkCancelAlertDialog(
-                                context: context,
-                                title: L10n.of(context).verifyOtherDevice,
-                                message: L10n.of(
-                                  context,
-                                ).verifyOtherDeviceDescription,
-                                okLabel: L10n.of(context).ok,
-                                cancelLabel: L10n.of(context).cancel,
-                              );
-                              if (consent != OkCancelResult.ok) return;
-                              if (!context.mounted) return;
-                              final req = await showFutureLoadingDialog(
-                                context: context,
-                                delay: false,
-                                future: () async {
-                                  await client.updateUserDeviceKeys();
-                                  return client.userDeviceKeys[client.userID!]!
-                                      .startVerification();
-                                },
-                              );
-                              if (req.error != null) return;
-                              if (!context.mounted) return;
-                              final success = await KeyVerificationDialog(
-                                request: req.result!,
-                              ).show(context);
-                              if (success != true) return;
-                              if (!context.mounted) return;
-
-                              final result = await showFutureLoadingDialog(
-                                context: context,
-                                future: () async {
-                                  final allCached =
-                                      await client.encryption!.keyManager
-                                          .isCached() &&
-                                      await client.encryption!.crossSigning
-                                          .isCached();
-                                  if (!allCached) {
-                                    await client
-                                        .encryption!
-                                        .ssss
-                                        .onSecretStored
-                                        .stream
-                                        .first;
-                                  }
-                                  return;
-                                },
-                              );
-                              if (!mounted) return;
-                              if (!result.isError) _goBackAction(true);
-                            },
-                    ),
-                    const SizedBox(height: 16),
-                    ElevatedButton.icon(
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: theme.colorScheme.errorContainer,
-                        foregroundColor: theme.colorScheme.onErrorContainer,
-                        iconColor: theme.colorScheme.onErrorContainer,
-                      ),
-                      icon: const Icon(Icons.delete_outlined),
-                      label: Text(L10n.of(context).recoveryKeyLost),
-                      onPressed: _recoveryKeyInputLoading
-                          ? null
-                          : () async {
-                              if (OkCancelResult.ok ==
-                                  await showOkCancelAlertDialog(
-                                    useRootNavigator: false,
-                                    context: context,
-                                    title: L10n.of(context).recoveryKeyLost,
-                                    message: L10n.of(context).wipeChatBackup,
-                                    okLabel: L10n.of(context).ok,
-                                    cancelLabel: L10n.of(context).cancel,
-                                    isDestructive: true,
-                                  )) {
-                                setState(() => _createBootstrap(true));
-                              }
-                            },
-                    ),
-                  ],
-                ),
-              ),
-            ),
+          final recoveryKey = await getRecoveryKey();
+          if (recoveryKey == null) return;
+          
+          await bootstrap!.newSsssKey!.unlock(
+            keyOrPassphrase: recoveryKey,
           );
+          await bootstrap!.openExistingSsss();
+          Logs().i('SSSS unlocked');
+          if (bootstrap!.encryption.crossSigning.enabled) {
+            Logs().v(
+              'Cross signing is already enabled. Try to self-sign',
+            );
+            await bootstrap!
+                .client
+                .encryption!
+                .crossSigning
+                .selfSign(recoveryKey: recoveryKey);
+            Logs().i('Successful selfsigned');
+          }
+          break;
+
         case BootstrapState.askWipeCrossSigning:
-          WidgetsBinding.instance.addPostFrameCallback(
-            (_) => bootstrap.wipeCrossSigning(_wipe!),
-          );
+          // ТОЖЕ ВСЕГДА false, чтобы сохранить цепочку доверия между устройствами
+          await bootstrap!.wipeCrossSigning(widget.wipe);
           break;
-        case BootstrapState.askSetupCrossSigning:
-          WidgetsBinding.instance.addPostFrameCallback(
-            (_) => bootstrap.askSetupCrossSigning(
-              setupMasterKey: true,
-              setupSelfSigningKey: true,
-              setupUserSigningKey: true,
-            ),
-          );
-          break;
-        case BootstrapState.askWipeOnlineKeyBackup:
-          WidgetsBinding.instance.addPostFrameCallback(
-            (_) => bootstrap.wipeOnlineKeyBackup(_wipe!),
-          );
 
+        case BootstrapState.askUnlockSsss:
+          // ВАЖНО: Если мы попали сюда после openExistingSsss, 
+          // нужно явно сказать SDK: "Мы всё разлочили, иди дальше"
+          bootstrap!.unlockedSsss();
           break;
+
+        case BootstrapState.askSetupCrossSigning:
+          // Если SDK запрашивает настройку кросс-подписи, 
+          // подтверждаем скачивание/настройку существующих ключей
+          await bootstrap!.askSetupCrossSigning(
+            setupMasterKey: true,
+            setupSelfSigningKey: true,
+            setupUserSigningKey: true,
+          );
+          break;
+
+        case BootstrapState.askWipeOnlineKeyBackup:
+          // ВСЕГДА false для автологина, чтобы не потерять ключи от старых комнат
+          bootstrap!.wipeOnlineKeyBackup(widget.wipe);
+          break;
+
         case BootstrapState.askSetupOnlineKeyBackup:
-          WidgetsBinding.instance.addPostFrameCallback(
-            (_) => bootstrap.askSetupOnlineKeyBackup(true),
-          );
+          // КРИТИЧНО: Почти всегда после SSSS идет запрос на бэкап комнат.
+          // Без этого вызова статус DONE никогда не прилетит!
+          await bootstrap!.askSetupOnlineKeyBackup(true);
           break;
-        case BootstrapState.error:
-          titleText = L10n.of(context).oopsSomethingWentWrong;
-          body = const Icon(Icons.error_outline, color: Colors.red, size: 80);
-          buttons.add(
-            ElevatedButton(
-              onPressed: () => _goBackAction(false),
-              child: Text(L10n.of(context).close),
-            ),
-          );
-          break;
+
         case BootstrapState.done:
-          titleText = L10n.of(context).everythingReady;
-          body = Column(
-            mainAxisSize: .min,
-            children: [
-              const Icon(
-                Icons.check_circle_rounded,
-                size: 120,
-                color: Colors.green,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                L10n.of(context).yourChatBackupHasBeenSetUp,
-                style: const TextStyle(fontSize: 20),
-              ),
-              const SizedBox(height: 16),
-            ],
-          );
-          buttons.add(
-            ElevatedButton(
-              onPressed: () => _goBackAction(true),
-              child: Text(L10n.of(context).close),
-            ),
-          );
+          Logs().i('==== BOOTSTRAP DONE CCESSFULLY ====');
+          _stateStreamController.close();
+          _goBackAction(true);
+          return;
+
+        case BootstrapState.error:
+          throw Exception('Matrix bootstrap machine returned Error state');
+
+        default:
           break;
+        
       }
     }
-
+  }
+  
+  @override
+  Widget build(BuildContext context) {
     return LoginScaffold(
       appBar: AppBar(
-        leading: CloseButton(onPressed: _cancelAction),
-        title: Text(titleText ?? L10n.of(context).loadingPleaseWait),
+        title: Text(L10n.of(context).loadingPleaseWait),
+        // Предоставляем пользователю возможность отменить автологин
+        leading: CloseButton(onPressed: () => _goBackAction(false)),
       ),
       body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: Column(
-            mainAxisSize: .min,
-            crossAxisAlignment: .stretch,
-            children: [body, const SizedBox(height: 8), ...buttons],
-          ),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // Адаптивное колесико (iOS-стиль на iOS, стандартный круг на Android)
+            const CircularProgressIndicator.adaptive(),
+            const SizedBox(height: 24),
+            Text(
+              'Синхронизация защищенного хранилища...',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Colors.grey[600],
+                  ),
+            ),
+          ],
         ),
       ),
     );

@@ -1,7 +1,3 @@
-import 'dart:convert';
-
-import 'package:collection/collection.dart';
-import 'package:fluffychat/config/app_config.dart';
 import 'package:fluffychat/config/setting_keys.dart';
 import 'package:fluffychat/pages/sign_in/view_model/model/public_homeserver_data.dart';
 import 'package:fluffychat/pages/sign_in/view_model/sign_in_state.dart';
@@ -50,41 +46,48 @@ class SignInViewModel extends ValueNotifier<SignInState> {
     );
   }
 
-  Future<void> refreshPublicHomeservers() async {
+  void refreshPublicHomeservers() {
     value = value.copyWith(publicHomeservers: AsyncSnapshot.waiting());
     final defaultHomeserverData = PublicHomeserverData(
       name: AppSettings.defaultHomeserver.value,
     );
     try {
-      final client = await matrixService.getLoginClient();
-      final response = await client.httpClient.get(AppConfig.homeserverList);
-      final json = jsonDecode(response.body) as Map<String, dynamic>;
-      final homeserverJsonList = json['public_servers'] as List;
+      // final client = await matrixService.getLoginClient();
+      // final response = await client.httpClient.get(AppConfig.homeserverList);
+      // final json = jsonDecode(response.body) as Map<String, dynamic>;
+      // final homeserverJsonList = json['public_servers'] as List;
 
-      final publicHomeservers = homeserverJsonList
-          .map((json) => PublicHomeserverData.fromJson(json))
-          .toList();
+      // final publicHomeservers = homeserverJsonList
+      //     .map((json) => PublicHomeserverData.fromJson(json))
+      //     .toList();
 
-      if (signUp) {
-        publicHomeservers.removeWhere((server) {
-          return server.regMethod == null;
-        });
-      }
+      // if (signUp) {
+      //   publicHomeservers.removeWhere((server) {
+      //     return server.regMethod == null;
+      //   });
+      // }
 
-      final defaultServer = publicHomeservers.singleWhereOrNull(
-        (server) => server.name == AppSettings.defaultHomeserver.value,
-      );
+      // final defaultServer = publicHomeservers.singleWhereOrNull(
+      //   (server) => server.name == AppSettings.defaultHomeserver.value,
+      // );
 
-      if (defaultServer == null) {
-        publicHomeservers.insert(0, defaultHomeserverData);
-      }
+      // if (defaultServer == null) {
+      //   publicHomeservers.insert(0, defaultHomeserverData);
+      // }
+
+      // value = value.copyWith(
+      //   selectedHomeserver: value.selectedHomeserver ?? publicHomeservers.first,
+      //   publicHomeservers: AsyncSnapshot.withData(
+      //     ConnectionState.done,
+      //     publicHomeservers,
+      //   ),
+      // );
 
       value = value.copyWith(
-        selectedHomeserver: value.selectedHomeserver ?? publicHomeservers.first,
-        publicHomeservers: AsyncSnapshot.withData(
-          ConnectionState.done,
-          publicHomeservers,
-        ),
+        selectedHomeserver: defaultHomeserverData,
+        publicHomeservers: AsyncSnapshot.withData(ConnectionState.done, [
+          defaultHomeserverData,
+        ]),
       );
     } catch (e, s) {
       Logs().w('Unable to fetch public homeservers...', e, s);

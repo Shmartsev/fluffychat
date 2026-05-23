@@ -1017,14 +1017,10 @@
         "type": "String",
         "placeholders": {}
     },
-    "logInTo": "Войти в {homeserver}",
+    "logInTo": "Войти в приложение",
     "@logInTo": {
         "type": "String",
-        "placeholders": {
-            "homeserver": {
-                "type": "String"
-            }
-        }
+        "placeholders": {}
     },
     "logout": "Выйти",
     "@logout": {

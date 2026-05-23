@@ -2,6 +2,7 @@ import 'package:fluffychat/config/app_config.dart';
 import 'package:fluffychat/config/setting_keys.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 abstract class FluffyThemes {
   static const double columnWidth = 380.0;
@@ -46,6 +47,7 @@ abstract class FluffyThemes {
     );
     final isColumnMode = FluffyThemes.isColumnMode(context);
     return ThemeData(
+      fontFamily: GoogleFonts.spectral().fontFamily,
       visualDensity: VisualDensity.standard,
       useMaterial3: true,
       brightness: brightness,
@@ -131,6 +133,9 @@ abstract class FluffyThemes {
           elevation: 0,
           padding: const EdgeInsets.all(16),
           textStyle: const TextStyle(fontSize: 16),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppConfig.borderRadius / 2)
+          )
         ),
       ),
     );
