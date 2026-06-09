@@ -1057,7 +1057,7 @@
         "type": "String",
         "placeholders": {}
     },
-    "newMessageInFluffyChat": "💬 Новое сообщение во FluffyChat",
+    "newMessageInFluffyChat": "💬 Новое сообщение во MGChat",
     "@newMessageInFluffyChat": {
         "type": "String",
         "placeholders": {}

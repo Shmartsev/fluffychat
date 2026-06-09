@@ -47,7 +47,7 @@ abstract class FluffyThemes {
     );
     final isColumnMode = FluffyThemes.isColumnMode(context);
     return ThemeData(
-      fontFamily: GoogleFonts.spectral().fontFamily,
+      fontFamily: GoogleFonts.rubik().fontFamily,
       visualDensity: VisualDensity.standard,
       useMaterial3: true,
       brightness: brightness,

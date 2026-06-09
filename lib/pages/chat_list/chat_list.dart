@@ -863,7 +863,7 @@ class ChatListController extends State<ChatList>
       waitForFirstSync = true;
     });
 
-    if (client.userDeviceKeys[client.userID!]?.deviceKeys.values.any(
+    /* if (client.userDeviceKeys[client.userID!]?.deviceKeys.values.any(
           (device) => !device.verified && !device.blocked,
         ) ??
         false) {
@@ -889,7 +889,7 @@ class ChatListController extends State<ChatList>
           ),
         ),
       );
-    }
+    } */
   }
 
   void setActiveFilter(ActiveFilter filter, String? tag) {

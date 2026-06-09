@@ -575,6 +575,21 @@ class Message extends StatelessWidget {
                                                 selected: selected,
                                                 bigEmojis: bigEmojis,
                                               ),
+                                              Align(
+                                                alignment: Alignment.bottomRight,
+                                                child: Padding(
+                                                  padding: const EdgeInsets.only(right: 12.0, bottom: 5.0, left: 12.0, top: 2.0),
+                                                  child: Text(
+                                                    // Выводим ТОЛЬКО время (HH:mm)
+                                                    displayEvent.originServerTs.localizedTime(context),
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      color: textColor.withAlpha(140), 
+                                                      fontWeight: FontWeight.w400,
+                                                    ),
+                                                  ),
+                                                ),
+                                              ),
                                               if (event.hasAggregatedEvents(
                                                 timeline,
                                                 RelationshipTypes.edit,

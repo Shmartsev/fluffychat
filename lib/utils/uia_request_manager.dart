@@ -9,6 +9,13 @@ import 'package:flutter/material.dart';
 import 'package:matrix/matrix.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+String? _silentAuthPassword;
+
+// Метод для установки пароля из твоего Login-экрана или BootstrapDialog
+void setSilentAuthPassword(String password) {
+  _silentAuthPassword = password;
+}
+
 extension UiaRequestManager on MatrixState {
   Future uiaRequestHandler(UiaRequest uiaRequest) async {
     final l10n = L10n.of(context);
@@ -26,7 +33,7 @@ extension UiaRequestManager on MatrixState {
       switch (stage) {
         case AuthenticationTypes.password:
           final input =
-              cachedPassword ??
+              /* _silentAuthPassword */cachedPassword ??
               (await showTextInputDialog(
                 context: navigatorContext,
                 title: l10n.pleaseEnterYourPassword,

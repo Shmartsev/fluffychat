@@ -82,6 +82,8 @@ class LoginController extends State<Login> {
         initialDeviceDisplayName: PlatformInfos.clientName,
       );
       if (mounted) {
+        //setSilentAuthPassword(passwordController.text);
+        matrix.cachedPassword = passwordController.text;
         context.go('/backup');
       }
     } on MatrixException catch (exception) {

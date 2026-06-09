@@ -83,15 +83,15 @@ abstract class AppRoutes {
               defaultPageBuilder(context, state, SignInPage(signUp: true)),
           redirect: loggedInRedirect,
         ),
-        // GoRoute(
-        //   path: 'login',
-        //   pageBuilder: (context, state) => defaultPageBuilder(
-        //     context,
-        //     state,
-        //     Login(client: state.extra as Client),
-        //   ),
-        //   redirect: loggedInRedirect,
-        // ),
+        GoRoute(
+          path: 'login',
+          pageBuilder: (context, state) => defaultPageBuilder(
+            context,
+            state,
+            Login(client: state.extra as Client),
+          ),
+          redirect: loggedInRedirect,
+        ),
       ],
     ),
     GoRoute(

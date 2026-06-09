@@ -185,7 +185,7 @@ class MatrixState extends State<Matrix> with WidgetsBindingObserver {
   String? get cachedPassword => _cachedPassword;
 
   set cachedPassword(String? p) {
-    Logs().d('Password cached');
+    Logs().i('Password cached');
     _cachedPasswordClearTimer?.cancel();
     _cachedPassword = p;
     _cachedPasswordClearTimer = Timer(const Duration(minutes: 10), () {

@@ -50,10 +50,10 @@ android {
 
     signingConfigs {
        create("release") {
-            keyAlias = "dummyAlias"
-            keyPassword = "dummyPassword"
+            keyAlias = "my-key-alias"
+            keyPassword = "9397820"
             storeFile = file("dummy.keystore")
-            storePassword = "dummyStorePassword"
+            storePassword = "9397820"
         }
     }
 
@@ -70,7 +70,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "chat.fluffy.fluffychat"
+        applicationId = "com.example.med_chat_app" // "chat.fluffy.fluffychat"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode

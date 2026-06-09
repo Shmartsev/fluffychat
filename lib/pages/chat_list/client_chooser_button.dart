@@ -1,4 +1,6 @@
+import 'package:fluffychat/config/app_config.dart';
 import 'package:fluffychat/config/themes.dart';
+import 'package:fluffychat/features/profile_screen/profile_screen.dart';
 import 'package:fluffychat/l10n/l10n.dart';
 import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:fluffychat/widgets/avatar.dart';
@@ -27,6 +29,22 @@ class ClientChooserButton extends StatelessWidget {
             : 1,
       );
     return <PopupMenuEntry<Object>>[
+      if (AppConfig.enableProfileFeature) ...[
+        PopupMenuItem(
+          value: SettingsAction.openProfile,
+          child: Row(
+            children: [
+              const Icon(Icons.badge_outlined, color: Colors.blue), // Выделим синим для наглядности
+              const SizedBox(width: 18),
+              const Text(
+                'Личный кабинет',
+                style: TextStyle(fontWeight: FontWeight.bold, color: Colors.blue),
+              ),
+            ],
+          ),
+        ),
+        const PopupMenuDivider(), // Отделим ЛК от чатовых настроек
+      ],
       PopupMenuItem(
         value: SettingsAction.newGroup,
         child: Row(
@@ -77,7 +95,7 @@ class ClientChooserButton extends StatelessWidget {
           ],
         ),
       ),
-      PopupMenuItem(
+      /* PopupMenuItem(
         value: SettingsAction.support,
         child: Row(
           children: [
@@ -86,7 +104,7 @@ class ClientChooserButton extends StatelessWidget {
             Text(L10n.of(context).supportFluffyChat),
           ],
         ),
-      ),
+      ), 
       const PopupMenuDivider(),
       for (final bundle in bundles) ...[
         if (matrix.accountBundles[bundle]!.length != 1 ||
@@ -156,7 +174,7 @@ class ClientChooserButton extends StatelessWidget {
             Text(L10n.of(context).addAccount),
           ],
         ),
-      ),
+      ),*/
     ];
   }
 
@@ -232,6 +250,14 @@ class ClientChooserButton extends StatelessWidget {
         case SettingsAction.setStatus:
           controller.setStatus();
           break;
+        case SettingsAction.openProfile:
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ProfileScreen(),
+            ),
+          );
+          break;
       }
     }
   }
@@ -245,4 +271,5 @@ enum SettingsAction {
   support,
   settings,
   archive,
+  openProfile,
 }

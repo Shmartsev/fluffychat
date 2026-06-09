@@ -350,8 +350,8 @@ class BackgroundPush {
 
   Future<void> setupFirebase() async {
     Logs().v('Setup firebase');
-    Logs().v("$_fcmToken");
-    //_fcmToken = await firebase.getToken();
+    _fcmToken = await firebase.getToken();
+    Logs().v("_fcmToken = $_fcmToken");
     if (_fcmToken?.isEmpty ?? true) {
       if (PlatformInfos.isIOS) {
         await firebase.requestPermission();

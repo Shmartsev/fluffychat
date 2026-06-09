@@ -1195,7 +1195,7 @@
         "type": "String",
         "placeholders": {}
     },
-    "newMessageInFluffyChat": "💬 New message in FluffyChat",
+    "newMessageInFluffyChat": "💬 New message in MGChat",
     "@newMessageInFluffyChat": {
         "type": "String",
         "placeholders": {}

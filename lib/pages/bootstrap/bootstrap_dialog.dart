@@ -40,6 +40,8 @@ class BootstrapDialogState extends State<BootstrapDialog> {
 
   bool? _wipe;
 
+  bool _isFirstStateProcessed = true;
+
   final StreamController<BootstrapState> _stateStreamController = StreamController();
 
   String get _secureStorageKey =>
@@ -63,9 +65,12 @@ class BootstrapDialogState extends State<BootstrapDialog> {
   @override
   void initState() {
     super.initState();
+    print('bootsrap dialog');
     client = Matrix.of(context).client;
-    _createBootstrap(widget.wipe);
+    _createBootstrap(widget.wipe);  
   }
+
+  
 
   Future<void> _cancelAction() async {
     final consent = await showOkCancelAlertDialog(
@@ -106,9 +111,9 @@ class BootstrapDialogState extends State<BootstrapDialog> {
     }
   }
 
-  Future<String?> getRecoveryKey() async {
+  Future<String?> _getRecoveryKey() async {
     final key = await const FlutterSecureStorage().read(key: _secureStorageKey);
-    print('key = $key');
+    print('_secureStorageKey = $_secureStorageKey, key = $key');
     if (key == null) {
       final fromServiceKey = await AdditionalApi.instance.getRecoveryKey(client.userID!);
       if (fromServiceKey != null && fromServiceKey.isNotEmpty) {
@@ -127,11 +132,24 @@ class BootstrapDialogState extends State<BootstrapDialog> {
     }
     await client.updateUserDeviceKeys();
     _wipe = wipe;
+    
+    
     titleText = null;
     _recoveryKeyStored = false;
     bootstrap = client.encryption!.bootstrap(onUpdate: (upd) => _stateStreamController.add(upd.state));
 
     await for (final state in _stateStreamController.stream) {
+
+      if (_isFirstStateProcessed) {
+        print("check isNewUser");
+        final isNewUser = (await _getRecoveryKey() == null);
+
+        print(isNewUser);
+        _wipe = isNewUser;
+        _isFirstStateProcessed = false;
+
+      }
+      
       switch (state) {
         case BootstrapState.askWipeSsss:
           bootstrap!.wipeSsss(_wipe!);
@@ -141,13 +159,22 @@ class BootstrapDialogState extends State<BootstrapDialog> {
           bootstrap!.useExistingSsss(!_wipe!);
           break;
 
+        case BootstrapState.askNewSsss:
+          bootstrap!.newSsss();
+          break;
+
         case BootstrapState.openExistingSsss:
-          final recoveryKey = await getRecoveryKey();
+          final recoveryKey = await _getRecoveryKey();
           if (recoveryKey == null) return;
+          try {
+            await bootstrap!.newSsssKey!.unlock(
+              keyOrPassphrase: recoveryKey,
+            );
+          } on InvalidPassphraseException {
+            Logs().e('Ключ не подошел');
+            
+          }
           
-          await bootstrap!.newSsssKey!.unlock(
-            keyOrPassphrase: recoveryKey,
-          );
           await bootstrap!.openExistingSsss();
           Logs().i('SSSS unlocked');
           if (bootstrap!.encryption.crossSigning.enabled) {
@@ -165,13 +192,14 @@ class BootstrapDialogState extends State<BootstrapDialog> {
 
         case BootstrapState.askWipeCrossSigning:
           // ТОЖЕ ВСЕГДА false, чтобы сохранить цепочку доверия между устройствами
-          await bootstrap!.wipeCrossSigning(widget.wipe);
+          await bootstrap!.wipeCrossSigning(_wipe!);
           break;
 
         case BootstrapState.askUnlockSsss:
           // ВАЖНО: Если мы попали сюда после openExistingSsss, 
           // нужно явно сказать SDK: "Мы всё разлочили, иди дальше"
           bootstrap!.unlockedSsss();
+          
           break;
 
         case BootstrapState.askSetupCrossSigning:
@@ -186,7 +214,7 @@ class BootstrapDialogState extends State<BootstrapDialog> {
 
         case BootstrapState.askWipeOnlineKeyBackup:
           // ВСЕГДА false для автологина, чтобы не потерять ключи от старых комнат
-          bootstrap!.wipeOnlineKeyBackup(widget.wipe);
+          bootstrap!.wipeOnlineKeyBackup(_wipe!);
           break;
 
         case BootstrapState.askSetupOnlineKeyBackup:
@@ -196,6 +224,26 @@ class BootstrapDialogState extends State<BootstrapDialog> {
           break;
 
         case BootstrapState.done:
+          if (_wipe!) {
+            // Достаем ключ, который Matrix SDK только что сгенерировал в памяти
+            final newKey = bootstrap!.newSsssKey!.recoveryKey;
+            if (newKey != null && newKey.isNotEmpty) {
+              Logs().i('Перехвачен новый Recovery Key. Сохраняем на бэкенд... $newKey');
+
+              AdditionalApi.instance.sendRecoveryKey(client.userID!, newKey);
+
+              
+              // Отправляем на бэк и дублируем в локальный SecureStorage
+              await const FlutterSecureStorage().write(
+                key: _secureStorageKey,
+                value: newKey,
+              );
+              //await _saveRecoveryKeyToBackend(newKey);
+              
+              // Обновляем локальную переменную, чтобы кейс openExistingSsss (если он идет следом) тоже его увидел
+              //recoveryKey = newKey; 
+            }
+          }
           Logs().i('==== BOOTSTRAP DONE CCESSFULLY ====');
           _stateStreamController.close();
           _goBackAction(true);
