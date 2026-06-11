@@ -1,9 +1,10 @@
+// lib/features/profile/profile_screen.dart
 import 'package:fluffychat/entities/appointment.dart';
 import 'package:fluffychat/entities/patient.dart';
+import 'package:fluffychat/pages/profile_screen/appointment_booking_sheet.dart';
 import 'package:fluffychat/utils/additional_api/additional_api.dart';
 import 'package:flutter/material.dart';
 
- 
 class ProfileScreen extends StatefulWidget {
 
   const ProfileScreen({Key? key}) : super(key: key);
@@ -13,12 +14,22 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
-  final AdditionalApi _apiService = AdditionalApi.instance;
+  final _apiService = AdditionalApi.instance;
 
   late Future<List<Patient>> _patientsFuture;
   Future<List<Appointment>>? _appointmentsFuture;
   
   Patient? _selectedPatient;
+
+  String formatAppointmentDate(DateTime dt) {
+  // Добавляем ведущие нули, чтобы вместо "9:5" было "09:05"
+    final day = dt.day.toString().padLeft(2, '0');
+    final month = dt.month.toString().padLeft(2, '0');
+    final hour = dt.hour.toString().padLeft(2, '0');
+    final minute = dt.minute.toString().padLeft(2, '0');
+
+    return '$day.$month.${dt.year} в $hour:$minute';
+  }
 
   @override
   void initState() {
@@ -65,7 +76,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // 1. Спикер/Выбор пациента
-                const Text('Медкарта пациента:', style: TextStyle(fontSize: 14, color: Colors.grey)),
+                const Text('Мед-карта пациента:', style: TextStyle(fontSize: 14, color: Colors.grey)),
                 DropdownButton<Patient>(
                   value: _selectedPatient,
                   isExpanded: true,
@@ -90,20 +101,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
           );
         },
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () {
+          //if (_selectedPatient == null) return;
+          showModalBottomSheet(
+            context: context,
+            isScrollControlled: true,
+            backgroundColor: Colors.transparent,
+            builder: (context) => AppointmentBookingSheet(patientId: _selectedPatient!.id),
+          );
+        },
+        label: const Text('Записаться на прием'),
+        icon: const Icon(Icons.add),
+      ),
     );
   }
 
   // Виджет отрисовки приемов
   Widget _buildAppointmentsList() {
     if (_appointmentsFuture == null) return const SizedBox();
-
-    String _formatDate(DateTime dt) {
-      final day = dt.day.toString().padLeft(2, '0');
-      final month = dt.month.toString().padLeft(2, '0');
-      final hour = dt.hour.toString().padLeft(2, '0');
-      final minute = dt.minute.toString().padLeft(2, '0');
-      return '$day.$month.${dt.year} в $hour:$minute';
-    }
 
     return FutureBuilder<List<Appointment>>(
       future: _appointmentsFuture,
@@ -160,7 +176,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         const Icon(Icons.access_time, size: 14, color: Colors.grey),
                         const SizedBox(width: 6),
                         Text(
-                          _formatDate(appointment.date),
+                          formatAppointmentDate(appointment.date),
                           style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500),
                         ),
                       ],
@@ -256,7 +272,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ),
             );
-          }
+          },
         );
       },
     );

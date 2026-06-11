@@ -1,7 +1,7 @@
 import 'package:fluffychat/config/app_config.dart';
 import 'package:fluffychat/config/themes.dart';
-import 'package:fluffychat/features/profile_screen/profile_screen.dart';
 import 'package:fluffychat/l10n/l10n.dart';
+import 'package:fluffychat/pages/profile_screen/profile_screen.dart';
 import 'package:fluffychat/widgets/adaptive_dialogs/show_ok_cancel_alert_dialog.dart';
 import 'package:fluffychat/widgets/avatar.dart';
 import 'package:fluffychat/widgets/matrix.dart';

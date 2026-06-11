@@ -2,6 +2,9 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:fluffychat/entities/appointment.dart';
+import 'package:fluffychat/entities/appointment_slot.dart';
+import 'package:fluffychat/entities/clinic.dart';
+import 'package:fluffychat/entities/doctor.dart';
 import 'package:fluffychat/entities/patient.dart';
 import 'package:fluffychat/utils/additional_api/token_storage.dart';
 import 'package:flutter/foundation.dart';
@@ -218,7 +221,7 @@ class AdditionalApi {
       accessToken = savedAccess;
       refreshToken = savedRefresh;
 
-      print('Токены из TokenStorage подтянуты в инстанс AdditionalApi');
+      print('Токены из TokenStorage подтянуты в инстанс AdditionalApi %accessToken');
 
       // Проверяем валидность на сервере
       final isValid = await _verifyTokenWithServer(accessToken);
@@ -284,6 +287,7 @@ class AdditionalApi {
     if (accessToken.isEmpty) return [];
 
     try {
+      print(accessToken);
       final response = await http.get(
         Uri.parse('$_baseUrl/mobile_client/me'),
         headers: {
@@ -376,5 +380,109 @@ class AdditionalApi {
         teeth: ['38'],
       ),
     ];
+  }
+
+  Future<List<Clinic>?> getBranches() async {
+    try {
+      final response = await http.get(Uri.parse('https://mg-django.spbeu.ru/api/website/clinics-description/'));
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body);
+        print(data);
+        return data.map((json) => Clinic.fromJson(json)).toList();
+      }
+    } catch (e) {
+      print('Ошибка при загрузке клиник: $e');
+    }
+    return null; // Возвращаем null при ошибке, чтобы можно было обработать в UI
+  }
+
+  Future<List<Doctor>?> getDoctors({required int clinicId}) async {
+    try {
+      final response = await http.get(Uri.parse('https://mg-django.spbeu.ru/api/docinfo/doctors-in-timetable?clinics=$clinicId'));
+      print('getDoctors response for clinicId $clinicId: ${response.statusCode}');
+      if (response.statusCode == 200) {
+        final List<dynamic> data = jsonDecode(response.body)['results'] as List<dynamic>;
+        //print(data);
+        return data.map((json) => Doctor.fromJson(json)).toList();
+      }
+    } catch (e) {
+      print('Ошибка при загрузке врачей: $e');
+    }
+    return null; // Возвращаем null при ошибке, чтобы можно было обработать в UI
+  }
+
+  Future<List<AppointmentSlot>?> getSlots({required int clinicId, required int doctorId}) async {
+    try {
+      final response = await http.get(Uri.parse('https://mg-django.spbeu.ru//api/docinfo/doctor_slots/$doctorId/'));
+      print('getSlots response for clinicId $clinicId doctorId $doctorId: ${response.statusCode} ${response.body}');
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> responseData = jsonDecode(response.body); 
+
+        // 2. Разворачиваем матрёшку в плоский список одной строкой
+        final List<AppointmentSlot> slots = AppointmentSlot.fromResponseMap(responseData, clinicId);
+        return slots;
+      }
+    } catch (e) {
+      print('Ошибка при загрузке слотов: $e');
+    }
+    return null; // Возвращаем null при ошибке, чтобы можно было обработать в UI
+  }
+
+  Future<bool> bookAppointment({required String patientId, int? doctorId, int? clinicId, required String startTime, required String finishTime}) async {
+    try {
+      // Тут должен быть реальный API вызов для бронирования
+      print('Booking appointment with patientId: $patientId, doctorId: $doctorId, clinicId: $clinicId, startTime: $startTime, finishTime: $finishTime');
+      final token = 'e32c26d322468a7f5e8858049f627a4798287418';
+      
+      // final response = await http.get(
+      //   Uri.parse('https://mg-django.spbeu.ru/api/website/available-slots/?booking_token=$token')
+      // );
+      // print('Token response: ${response.statusCode} ${response.body}');
+      final bookResponse = await http.post(
+        Uri.parse('https://mg-django.spbeu.ru/api/docinfo/lk-booking/'),
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Token $token',
+        },
+        body: jsonEncode({
+                          'patient_id': patientId,
+                                   'doctor_id': doctorId,
+                                   'clinic_id': clinicId,
+                                   'StartTime': startTime,
+                                   'FinishTime': finishTime,
+                                  
+                        }),
+      );
+      print('Book appointment response: ${bookResponse.statusCode} ${bookResponse.body}');
+      return bookResponse.statusCode == 200;
+
+    } catch (e) {
+      print('Ошибка при бронировании приёма: $e');
+      return false;
+    }
+     // Заглушка, всегда успешно
+  }
+
+  Future<List<dynamic>>? fetchUpcomingAppointments(String patientId) async {
+    try {
+      print('fetchPreentries for patientId: $patientId with token: ${accessToken.substring(0, 5)}...');
+      final response = await http.get(
+        Uri.parse('$_baseUrl/mobile_client/patient_full_info?patient_id=$patientId'),
+        headers: {'Authorization': 'Bearer $accessToken'}
+      );
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List<dynamic> visitsRaw = data['preentries']['planned'] ?? [];
+        return List<Appointment>.from(
+          visitsRaw.map((item) => Appointment.fromJson(item))
+        );
+          
+      }
+    } catch (e) {
+      print('Ошибка API приемов: $e');
+    }
+    // Дефолтная заглушка для тестов
+    return [];
+    
   }
 }

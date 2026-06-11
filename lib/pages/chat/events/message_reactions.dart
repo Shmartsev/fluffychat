@@ -154,13 +154,13 @@ class _Reaction extends StatelessWidget {
       borderRadius: BorderRadius.circular(AppConfig.borderRadius / 2),
       child: Container(
         decoration: BoxDecoration(
-          color: reacted == true
+          color: Colors.transparent,/* reacted == true
               ? theme.colorScheme.primaryContainer
-              : theme.colorScheme.surfaceContainerHigh,
+              : theme.colorScheme.surfaceContainerHigh, */
           border: Border.all(
-            color: reacted == true
+            color: Colors.transparent, /* reacted == true
                 ? theme.colorScheme.primary
-                : theme.colorScheme.surfaceContainerHigh,
+                : theme.colorScheme.surfaceContainerHigh, */
             width: 1,
           ),
           borderRadius: BorderRadius.circular(AppConfig.borderRadius / 2),
