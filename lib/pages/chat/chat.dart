@@ -13,7 +13,9 @@ import 'package:fluffychat/pages/chat/chat_view.dart';
 import 'package:fluffychat/pages/chat/event_info_dialog.dart';
 import 'package:fluffychat/pages/chat/start_poll_bottom_sheet.dart';
 import 'package:fluffychat/pages/chat_details/chat_details.dart';
+import 'package:fluffychat/pages/profile_screen/call_page.dart';
 import 'package:fluffychat/utils/adaptive_bottom_sheet.dart';
+import 'package:fluffychat/utils/additional_api/additional_api.dart';
 import 'package:fluffychat/utils/error_reporter.dart';
 import 'package:fluffychat/utils/file_selector.dart';
 import 'package:fluffychat/utils/matrix_sdk_extensions/event_extension.dart';
@@ -1339,6 +1341,61 @@ class ChatController extends State<ChatPageWithRoom>
 
   void showEventInfo([Event? event]) =>
       (event ?? selectedEvents.single).showInfoDialog(context);
+
+  // Внутри ChatController
+  void onPhoneButtonTapNew() async {
+    try {
+      // 1. Получаем данные участников
+      // В Matrix ID обычно в формате @username:server.com
+      final myId = room.client.userID ?? '';
+      final peerId = room.directChatMatrixID ?? '';
+      // final myName = room.client.clientName;
+      final profile = await room.client.getUserProfile(myId);
+      final myName = profile.displayname ?? myId;
+
+      // 2. Вызываем твой новый API (AdditionalApi)
+      // Показываем лоадер, если нужно
+      final callData = await AdditionalApi.instance.createCallToken(
+        participantId: myId,
+        targetParticipantId: peerId,
+        participantName: myName,
+      );
+
+      print('Полученные данные для звонка: $callData');
+
+      final eventId = await room.client.sendMessage(
+        room.id,
+        EventTypes.Message,
+        DateTime.now().millisecondsSinceEpoch.toString(),
+        {
+          "msgtype": "m.text",
+          "body": "📞 Голосовой звонок",
+          "custom_call_type": "livekit_audio",
+          "room_name": "${room.id}_call", // Передаем ID комнаты для бэка
+          "caller_id": myId,
+          "caller_name": myName,
+        },
+      );
+
+      // 3. Открываем экран звонка
+      // Используем навигатор из контекста контроллера
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => CallPage(
+            url: callData['server_url'],
+            token: callData['token'],
+            myId: myId,
+            peerId: peerId,
+            callEventId: eventId
+          ),
+        ),
+      );
+    } catch (e) {
+      // Показываем ошибку пользователю через стандартные средства FluffyChat
+      print(e); 
+    }
+  }
 
   Future<void> onPhoneButtonTap() async {
     // VoIP required Android SDK 21

@@ -5,6 +5,7 @@ import 'package:fluffychat/l10n/l10n.dart';
 import 'package:fluffychat/pages/chat/events/poll.dart';
 import 'package:fluffychat/pages/chat/events/video_player.dart';
 import 'package:fluffychat/pages/image_viewer/image_viewer.dart';
+import 'package:fluffychat/pages/profile_screen/call_message_widget.dart';
 import 'package:fluffychat/utils/adaptive_bottom_sheet.dart';
 import 'package:fluffychat/utils/date_time_extension.dart';
 import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_locals.dart';
@@ -112,6 +113,20 @@ class MessageContent extends StatelessWidget {
       case EventTypes.Message:
       case EventTypes.Encrypted:
       case EventTypes.Sticker:
+        final isLiveKitCall = event.content['custom_call_type'] == 'livekit_audio';
+        
+        if (isLiveKitCall) {
+          final String myId = Matrix.of(context).client.userID ?? '';
+          
+          return CallMessageWidget(
+            eventId: event.eventId,
+            callerName: (event.content['caller_name'] ?? 'Абонент').toString(),
+            callerId: (event.content['caller_id'] ?? '').toString(),
+            myId: myId,
+            // Переводим timestamp сервера в миллисекунды
+            timestamp: event.originServerTs.millisecondsSinceEpoch, 
+          );
+        }
         switch (event.messageType) {
           case MessageTypes.Image:
           case MessageTypes.Sticker:

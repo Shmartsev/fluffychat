@@ -18,6 +18,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   late Future<List<Patient>> _patientsFuture;
   Future<List<Appointment>>? _appointmentsFuture;
+  Future<List<dynamic>>? _upcomingFuture;
   
   Patient? _selectedPatient;
 
@@ -43,9 +44,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (patient == null) return;
     setState(() {
       _selectedPatient = patient;
-      // Запускаем загрузку приемов для выбранного пациента
-      _appointmentsFuture = _apiService.fetchAppointments(patient.id);
+      _loadPatientData(patient.id);  
     });
+  }
+
+  void _loadPatientData(String patientId) {
+   _appointmentsFuture = _apiService.fetchAppointments(patientId);
+   _upcomingFuture = _apiService.fetchUpcomingAppointments(patientId); // Твой эндпоинт для ПЗ
   }
 
   @override
@@ -66,7 +71,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           // Если еще никто не выбран, берем первого по дефолту
           if (_selectedPatient == null && patients.isNotEmpty) {
             _selectedPatient = patients.first;
-            _appointmentsFuture = _apiService.fetchAppointments(_selectedPatient!.id);
+            _loadPatientData(_selectedPatient!.id);
           }
 
           return Padding(
@@ -76,7 +81,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // 1. Спикер/Выбор пациента
-                const Text('Мед-карта пациента:', style: TextStyle(fontSize: 14, color: Colors.grey)),
+                const Text('Медкарта пациента:', style: TextStyle(fontSize: 14, color: Colors.grey)),
                 DropdownButton<Patient>(
                   value: _selectedPatient,
                   isExpanded: true,
@@ -103,7 +108,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
-          //if (_selectedPatient == null) return;
           showModalBottomSheet(
             context: context,
             isScrollControlled: true,

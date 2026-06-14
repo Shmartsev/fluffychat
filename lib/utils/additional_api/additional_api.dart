@@ -351,7 +351,7 @@ class AdditionalApi {
         /* headers: {'Authorization': 'Bearer $accessToken'}, */);
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print(data);
+        //print(data);
         final List<dynamic> visitsRaw = data['visits'] ?? [];
         return List<Appointment>.from(
           visitsRaw.map((item) => Appointment.fromJson(item))
@@ -468,11 +468,16 @@ class AdditionalApi {
       print('fetchPreentries for patientId: $patientId with token: ${accessToken.substring(0, 5)}...');
       final response = await http.get(
         Uri.parse('$_baseUrl/mobile_client/patient_full_info?patient_id=$patientId'),
-        headers: {'Authorization': 'Bearer $accessToken'}
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer $accessToken'
+        }
       );
+      print('fetchPreentries response for patientId $patientId: ${response.statusCode}');
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         final List<dynamic> visitsRaw = data['preentries']['planned'] ?? [];
+        print('Upcoming appointments raw data: $visitsRaw');
         return List<Appointment>.from(
           visitsRaw.map((item) => Appointment.fromJson(item))
         );
@@ -484,5 +489,53 @@ class AdditionalApi {
     // Дефолтная заглушка для тестов
     return [];
     
+  }
+
+  Future<Map<String, dynamic>> createCallToken({
+    required String participantId,
+    required String targetParticipantId,
+    required String participantName,
+  }) async {
+    final response = await http.post(
+      Uri.parse('https://dev.mg-backend.it-ivs.ru/mg-backend/livekit/token'),
+        headers: {
+          'Content-Type': 'application/json',
+          //'Authorization': 'Token $token',
+        },
+        body: jsonEncode({
+          "participant_id": participantId,
+          "target_participant_id": targetParticipantId,
+          "participant_name": participantName,
+        }),
+    );
+    if (response.statusCode == 200) {
+      print('Call token response: ${response.statusCode} ${response.body}');
+      final data = jsonDecode(response.body);
+      return data; // Ждем тут {"url": "wss://...", "token": "..."}
+    }
+    return {}; // В случае ошибки возвращаем пустой словарь, который нужно обработать в UI
+  }
+
+  // 2. Сигнал о завершении звонка
+  Future<void> hangupCall({
+    required String participantId,
+    required String targetParticipantId,
+  }) async {
+    final response = await http.post(
+      Uri.parse('https://dev.mg-backend.it-ivs.ru/mg-backend/livekit/hangup'),
+        headers: {
+          'Content-Type': 'application/json',
+          //'Authorization': 'Token $token',
+        },
+        body: jsonEncode({
+          "participant_id": participantId,
+          "target_participant_id": targetParticipantId,
+        }),
+    );
+    if (response.statusCode == 200) {
+      print('Call hangup response: ${response.statusCode} ${response.body}');
+      final data = jsonDecode(response.body);
+       // Ждем тут {"url": "wss://...", "token": "..."}
+    }
   }
 }

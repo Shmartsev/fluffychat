@@ -223,6 +223,7 @@ class ChatView extends StatelessWidget {
                         ],
                       ),
                   ] else if (!controller.room.isArchived) ...[
+                    
                     if ((AppSettings.experimentalVoip.value &&
                         Matrix.of(context).voipPlugin != null &&
                         controller.room.isDirectChat))
@@ -234,6 +235,11 @@ class ChatView extends StatelessWidget {
                     else if (AppSettings.jitsiFeature.value)
                       JitsiPopupButton(controller.room),
                     //EncryptionButton(controller.room),
+                    IconButton(
+                        onPressed: controller.onPhoneButtonTapNew,
+                        icon: const Icon(Icons.call_outlined),
+                        tooltip: L10n.of(context).placeCall,
+                    ),
                     ChatSettingsPopupMenu(controller.room, true),
                   ],
                 ],
