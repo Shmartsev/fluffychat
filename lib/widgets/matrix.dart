@@ -6,6 +6,7 @@ import 'package:desktop_notifications/desktop_notifications.dart';
 import 'package:fluffychat/l10n/l10n.dart';
 import 'package:fluffychat/utils/client_manager.dart';
 import 'package:fluffychat/utils/init_with_restore.dart';
+import 'package:fluffychat/utils/livekit/livekit_call_handler.dart';
 import 'package:fluffychat/utils/matrix_sdk_extensions/matrix_file_extension.dart';
 import 'package:fluffychat/utils/platform_infos.dart';
 import 'package:fluffychat/utils/uia_request_manager.dart';
@@ -220,6 +221,9 @@ class MatrixState extends State<Matrix> with WidgetsBindingObserver {
       );
       return;
     }
+
+    c.onTimelineEvent.stream.listen((event) => LiveKitCallHandler.handleIncomingTimelineEvent(event, c));
+
     onRoomKeyRequestSub[name] ??= c.onRoomKeyRequest.stream.listen((
       RoomKeyRequest request,
     ) async {

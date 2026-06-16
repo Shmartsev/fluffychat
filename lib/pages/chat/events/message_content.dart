@@ -119,12 +119,9 @@ class MessageContent extends StatelessWidget {
           final String myId = Matrix.of(context).client.userID ?? '';
           
           return CallMessageWidget(
-            eventId: event.eventId,
+            
             callerName: (event.content['caller_name'] ?? 'Абонент').toString(),
-            callerId: (event.content['caller_id'] ?? '').toString(),
-            myId: myId,
-            // Переводим timestamp сервера в миллисекунды
-            timestamp: event.originServerTs.millisecondsSinceEpoch, 
+            
           );
         }
         switch (event.messageType) {

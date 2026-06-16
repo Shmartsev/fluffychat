@@ -46,10 +46,12 @@ class _CallPageState extends State<CallPage> {
       await Hardware.instance.setSpeakerphoneOn(false);
     }
 
-    _updatePeerStatus();
+    //_updatePeerStatus();
 
     // Слушаем появление/уход собеседника в комнате
     _listener.on<RoomEvent>((event) {
+      print('on RoomEvent: $event');
+      print('Текущие удаленные участники: ${room.remoteParticipants}');
       setState(_updatePeerStatus);
     });
 
