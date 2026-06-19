@@ -1,8 +1,6 @@
 import 'package:fluffychat/utils/additional_api/additional_api.dart';
 import 'package:flutter/material.dart';
 
-import 'call_page.dart';
-
 class IncomingCallPage extends StatefulWidget {
   final String roomId; // ID комнаты в Matrix, чтобы не открывать звонок из старой истории
   final String callEventId; // ID события звонка в Matrix, чтобы не открывать звонок из старой истории
@@ -39,19 +37,23 @@ class _IncomingCallPageState extends State<IncomingCallPage> {
 
       if (!mounted) return;
 
+      if (mounted) {
+        Navigator.of(context).pop(true); 
+      }
+
       // 2. Заменяем экран входящего звонка на активную CallPage
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(
-          builder: (context) => CallPage(
-            url: callData['server_url'],
-            token: callData['token'],
-            myId: widget.participantId,
-            peerId: widget.targetParticipantId,
-            callEventId: widget.callEventId,
-          ),
-        ),
-      );
+      // Navigator.pushReplacement(
+      //   context,
+      //   MaterialPageRoute(
+      //     builder: (context) => CallPage(
+      //       url: callData['server_url'],
+      //       token: callData['token'],
+      //       myId: widget.participantId,
+      //       peerId: widget.targetParticipantId,
+      //       callEventId: widget.callEventId,
+      //     ),
+      //   ),
+      // );
     } catch (e) {
       _rejectCall();
     }
@@ -68,7 +70,7 @@ class _IncomingCallPageState extends State<IncomingCallPage> {
     } catch (_) {}
 
     if (mounted) {
-      Navigator.pop(context); // Закрываем экран входящего звонка
+      Navigator.of(context).pop(false); // Закрываем экран входящего звонка
     }
   }
 
