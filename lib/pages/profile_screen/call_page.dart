@@ -39,45 +39,49 @@ class _CallPageState extends State<CallPage> {
 
   Future<void> _initLiveKit() async {
     try {
-      final room = Room();
+      final room = Room(roomOptions: RoomOptions(
+        adaptiveStream: true,
+        dynacast: true,
+      ));
       _room = room;
       _listener = room.createListener();
 
       // Магия звука #1: Принудительно включаем разговорный динамик на старте
-      if (lkPlatformIsMobile()) {
-        await Hardware.instance.setSpeakerphoneOn(false);
-      }
+      // if (lkPlatformIsMobile()) {
+      //   await Hardware.instance.setSpeakerphoneOn(false);
+      // }
 
       // Магия звука #2: Перехватываем публикацию аудио-трека собеседника
-      _listener?.on<TrackSubscribedEvent>((event) async {
-        // Проверяем тип трека через строковое значение 'audio'
-        if (event.track.kind.toString().contains('audio')) {
-          print("🔊 Получен аудио-трек собеседника! Включаем воспроизведение.");
-          try {
-            await event.track.start(); 
-          } catch (e) {
-            print("Не удалось принудительно запустить трек: $e");
-          }
-        }
-      });
+      // _listener?.on<TrackSubscribedEvent>((event) async {
+      //   // Проверяем тип трека через строковое значение 'audio'
+      //   if (event.track.kind.toString().contains('audio')) {
+      //     print("🔊 Получен аудио-трек собеседника! Включаем воспроизведение.");
+      //     try {
+      //       await event.track.start(); 
+      //     } catch (e) {
+      //       print("Не удалось принудительно запустить трек: $e");
+      //     }
+      //   }
+      // });
 
-      // Отслеживаем статус собеседника
-      _listener?.on<RoomEvent>((event) {
-        if (!mounted) return;
-        setState(() {
-          _isPeerJoined = room.remoteParticipants.isNotEmpty;
-        });
-      });
+      // // Отслеживаем статус собеседника
+      // _listener?.on<RoomEvent>((event) {
+      //   if (!mounted) return;
+      //   setState(() {
+      //     _isPeerJoined = room.remoteParticipants.isNotEmpty;
+      //   });
+      // });
 
-      _listener?.on<ParticipantDisconnectedEvent>((_) => _disconnectAndExit());
+      //_listener?.on<ParticipantDisconnectedEvent>((_) => _disconnectAndExit());
 
       // Коннект
-      await room.connect(widget.url, widget.token);
+      
+      await room.connect('wss://livekit.medgarant-spb.ru', widget.token);
       
       // Публикуем себя в аудиосеть
       await room.localParticipant?.setMicrophoneEnabled(true);
-      await room.localParticipant?.setCameraEnabled(false);
-
+      //await room.localParticipant?.setCameraEnabled(false);
+      
       if (mounted) {
         setState(() {
           _isConnected = true;
