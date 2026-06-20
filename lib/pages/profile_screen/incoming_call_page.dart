@@ -1,20 +1,16 @@
-import 'package:fluffychat/utils/additional_api/additional_api.dart';
+import 'package:fluffychat/utils/livekit/livekit_call_handler.dart';
 import 'package:flutter/material.dart';
 
 class IncomingCallPage extends StatefulWidget {
-  final String roomId; // ID комнаты в Matrix, чтобы не открывать звонок из старой истории
-  final String callEventId; // ID события звонка в Matrix, чтобы не открывать звонок из старой истории
   final String callerName;
-  final String participantId;       // Мой ID
-  final String targetParticipantId; // ID звонящего
-
+  final String url;
+  final String token;
+  
   const IncomingCallPage({
     Key? key,
-    required this.roomId,
-    required this.callEventId,
     required this.callerName,
-    required this.participantId,
-    required this.targetParticipantId,
+    required this.url,
+    required this.token,
   }) : super(key: key);
 
   @override
@@ -22,123 +18,99 @@ class IncomingCallPage extends StatefulWidget {
 }
 
 class _IncomingCallPageState extends State<IncomingCallPage> {
-  bool _isProcessing = false;
+  //bool _isProcessing = false;
+  bool _isAccepted = false;
 
-  // Пользователь принял вызов
-  void _acceptCall() async {
-    setState(() => _isProcessing = true);
-    try {
-      // 1. Получаем токен для этой же комнаты
-      final callData = await AdditionalApi.instance.createCallToken(
-        participantId: widget.participantId,
-        targetParticipantId: widget.targetParticipantId,
-        participantName: 'Пользователь', // Или твое имя из Matrix
-      );
-
-      if (!mounted) return;
-
+  @override
+  void initState() {
+    super.initState();
+    
+    // СЮДА: Регистрируем фоновую функцию закрытия экрана
+    LiveKitCallHandler.onPeerDisconnected = () {
       if (mounted) {
-        Navigator.of(context).pop(true); 
+        print("📉 UI поймал сигнал дисконнекта. Закрываем экран.");
+        Navigator.of(context).pop();
       }
-
-      // 2. Заменяем экран входящего звонка на активную CallPage
-      // Navigator.pushReplacement(
-      //   context,
-      //   MaterialPageRoute(
-      //     builder: (context) => CallPage(
-      //       url: callData['server_url'],
-      //       token: callData['token'],
-      //       myId: widget.participantId,
-      //       peerId: widget.targetParticipantId,
-      //       callEventId: widget.callEventId,
-      //     ),
-      //   ),
-      // );
-    } catch (e) {
-      _rejectCall();
-    }
-  }
-
-  // Пользователь отклонил вызов
-  void _rejectCall() async {
-    // Отправляем сигнал "hangup" на бэк, чтобы у звонящего тоже прекратился вызов
-    try {
-      await AdditionalApi.instance.hangupCall(
-        participantId: widget.participantId,
-        targetParticipantId: widget.targetParticipantId,
-      );
-    } catch (_) {}
-
-    if (mounted) {
-      Navigator.of(context).pop(false); // Закрываем экран входящего звонка
-    }
+    };
   }
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
+  void dispose() {
+    // ОБЯЗАТЕЛЬНО: Очищаем ссылку при уничтожении экрана, 
+    // чтобы хэндлер не держал мертвый контекст старого виджета
+    LiveKitCallHandler.onPeerDisconnected = null;
+    super.dispose();
+  }
 
+  void _handleAccept() async {
+    setState(() {
+      _isAccepted = true;
+    });
+    await LiveKitCallHandler.connectActiveCall(widget.url, widget.token);
+  }
+
+  void _handleReject() async {
+    // Гасим нативный слой и уведомляем Django
+    await LiveKitCallHandler.hangupActiveCall();
+    
+    if (mounted) {
+      Navigator.of(context).pop(); // Просто закрываем экран звонка
+    }
+  }
+
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: theme.colorScheme.surfaceContainerLowest,
+      backgroundColor: Colors.black87,
       body: SafeArea(
         child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
-            const Spacer(),
-            
-            // Информация о звонящем
+            // Блок информации о пользователе
             Column(
               children: [
-                CircleAvatar(
-                  radius: 60,
-                  backgroundColor: theme.colorScheme.primaryContainer,
-                  child: Icon(Icons.person, size: 60, color: theme.colorScheme.onPrimaryContainer),
+                const CircleAvatar(
+                  radius: 50,
+                  backgroundColor: Colors.white24,
+                  child: Icon(Icons.person, size: 60, color: Colors.white),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
                 Text(
                   widget.callerName,
-                  style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+                  style: const TextStyle(color: Colors.white, fontSize: 28, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 12),
-                const Text(
-                  'Входящий аудиозвонок...',
-                  style: TextStyle(fontSize: 16, color: Colors.green, fontWeight: FontWeight.w500),
+                Text(
+                  _isAccepted ? "Идет разговор..." : "Входящий аудиозвонок...",
+                  style: TextStyle(color: _isAccepted ? Colors.greenAccent : Colors.white70, fontSize: 18),
                 ),
               ],
             ),
-            
-            const Spacer(),
 
-            // Кнопки управления (Две круглые кнопки: Красная и Зеленая)
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 48.0, vertical: 40.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: [
-                  // Сбросить
-                  IconButton(
-                    icon: const Icon(Icons.call_end, size: 36),
-                    color: Colors.white,
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.redAccent,
-                      padding: const EdgeInsets.all(20),
-                    ),
-                    onPressed: _isProcessing ? null : _rejectCall,
+            // Блок управления кнопками (динамически меняется)
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                if (!_isAccepted) ...[
+                  // Кнопка "Принять" (показывается только ДО принятия)
+                  FloatingActionButton(
+                    heroTag: "accept_btn",
+                    backgroundColor: Colors.green,
+                    onPressed: _handleAccept,
+                    child: const Icon(Icons.call, size: 30, color: Colors.white),
                   ),
-                  
-                  // Принять
-                  IconButton(
-                    icon: _isProcessing 
-                        ? const CircularProgressIndicator(color: Colors.white)
-                        : const Icon(Icons.call, size: 36),
-                    color: Colors.white,
-                    style: IconButton.styleFrom(
-                      backgroundColor: Colors.green,
-                      padding: const EdgeInsets.all(20),
-                    ),
-                    onPressed: _isProcessing ? null : _acceptCall,
-                  ),
+                  const SizedBox(width: 64),
                 ],
-              ),
+                
+                // Кнопка "Сбросить" (есть всегда)
+                FloatingActionButton(
+                  heroTag: "reject_btn",
+                  backgroundColor: Colors.redAccent,
+                  onPressed: _handleReject,
+                  child: const Icon(Icons.call_end, size: 30, color: Colors.white),
+                ),
+              ],
             ),
           ],
         ),

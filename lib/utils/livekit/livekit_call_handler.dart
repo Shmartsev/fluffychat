@@ -1,4 +1,7 @@
+import 'package:fluffychat/pages/profile_screen/incoming_call_page.dart';
 import 'package:fluffychat/utils/additional_api/additional_api.dart';
+import 'package:fluffychat/widgets/fluffy_chat_app.dart';
+import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart' as livekit;
 import 'package:matrix/matrix.dart';
 
@@ -6,6 +9,11 @@ import 'package:matrix/matrix.dart';
 class LiveKitCallHandler {
   static livekit.Room? _activeRoom;
   static livekit.EventsListener<livekit.RoomEvent>? _activeListener;
+
+  static String? _currentMyId;
+  static String? _currentPeerId;
+
+  static VoidCallback? onPeerDisconnected;
   /// Перехватчик нового события в комнате.
   /// Вызывается ядром Matrix нативно при обновлении таймлайна, БЕЗ использования .listen()
   static Future<void> handleIncomingTimelineEvent(Event event, Client client) async {
@@ -14,20 +22,18 @@ class LiveKitCallHandler {
     if (event.type == EventTypes.Message &&
         event.content['custom_call_type'] == 'livekit_audio') {
       
-      final myId = client.userID ?? '';
-      final callerId = event.content['caller_id']?.toString() ?? '';
+      _currentMyId = client.userID ?? '';
+      _currentPeerId = event.content['caller_id']?.toString() ?? '';
 
-      final profile = await client.getUserProfile(myId);
-      final myName = profile.displayname ?? myId;
+      final profile = await client.getUserProfile(_currentMyId!);
+      final myName = profile.displayname ?? _currentMyId;
       
-      if (callerId == myId) return; // Игнорируем исходящие
+      if (_currentPeerId == _currentMyId) return; // Игнорируем исходящие
 
       // Проверка на свежесть (в пределах 30 секунд)
       final serverTime = event.originServerTs.millisecondsSinceEpoch;
       final now = DateTime.now().millisecondsSinceEpoch;
       if ((now - serverTime).abs() > 30000) return;
-
-      
 
       final roomId = event.roomId;
       if (roomId == null) return;
@@ -35,66 +41,55 @@ class LiveKitCallHandler {
       try {
       // 1. Получаем токен для этой же комнаты
         final callData = await AdditionalApi.instance.createCallToken(
-          participantId: myId,
-          targetParticipantId: callerId,
-          participantName: myName, // Или твое имя из Matrix
+          participantId: _currentMyId!,
+          targetParticipantId: _currentPeerId!,
+          participantName: myName!, // Или твое имя из Matrix
         );
 
-        final String url = callData['server_url']?.toString() ?? '';
-        final String token = callData['token']?.toString() ?? '';
+        final url = callData['server_url']?.toString() ?? '';
+        final token = callData['token']?.toString() ?? '';
 
         if (url.isEmpty || token.isEmpty) {
           print("❌ Бэкенд не вернул URL или Токен для LiveKit");
           return;
         }
 
-        await _startSilentCall(
-          url: url,
-          token: token,
-          myId: myId,
-          peerId: callerId,
-        );
-
-        // 2. Заменяем экран входящего звонка на активную CallPage
-        // Navigator.pushReplacement(
-        //   context,
-        //   MaterialPageRoute(
-        //     builder: (context) => CallPage(
-        //       url: callData['server_url'],
-        //       token: callData['token'],
-        //       myId: widget.participantId,
-        //       peerId: widget.targetParticipantId,
-        //       callEventId: widget.callEventId,
-        //     ),
-        //   ),
-        // );
+        final globalContext = FluffyChatApp.router.routerDelegate.navigatorKey.currentContext;
+        if (globalContext != null) {
+          Navigator.push(
+            globalContext,
+            MaterialPageRoute(
+              builder: (context) => IncomingCallPage(
+                callerName: event.content['caller_name']?.toString() ?? 'Абонент',
+                url: url,
+                token: token,
+              ),
+            ),
+          );
+        }
+        
       } catch (e) {
         // _rejectCall();
 
         print("❌ Ошибка при подготовке фонового автоответа: $e");
-        _cleanUp(myId, callerId);
+        _cleanUp(_currentMyId!, _currentPeerId!);
       }
-
-      // Магия навигации FluffyChat:
-      // В твоем файле Matrix мы четко видим, что автор использует FluffyChatApp.router.
-      // Достаем глобальный контекст роутера мессенджера напрямую, минуя UI-виджеты:
-      // final globalContext = FluffyChatApp.router.routerDelegate.navigatorKey.currentContext;
-
-      // if (globalContext != null) {
-      //   Navigator.push(
-      //     globalContext,
-      //     MaterialPageRoute(
-      //       builder: (context) => IncomingCallPage(
-      //         roomId: roomId,
-      //         callEventId: event.eventId,
-      //         callerName: event.content['caller_name']?.toString() ?? 'Абонент',
-      //         participantId: myId,
-      //         targetParticipantId: callerId,
-      //       ),
-      //     ),
-      //   );
-      // }
     }
+  }
+
+  static Future<void> connectActiveCall(String url, String token) async {
+    if (_currentMyId == null || _currentPeerId == null) return;
+    await _startSilentCall(
+      url: url,
+      token: token,
+      myId: _currentMyId!,
+      peerId: _currentPeerId!,
+    );
+  }
+
+  static Future<void> hangupActiveCall() async {
+    if (_currentMyId == null || _currentPeerId == null) return;
+    await _cleanUp(_currentMyId!, _currentPeerId!);
   }
 
   static Future<void> _startSilentCall({
@@ -130,6 +125,10 @@ class LiveKitCallHandler {
       _activeListener?.on<livekit.ParticipantDisconnectedEvent>((_) {
         print("⏹ Собеседник отключился. Завершаем сессию.");
         stopCurrentCall(myId, peerId);
+        if (onPeerDisconnected != null) {
+          print("📣 Передаем сигнал дисконнекта в UI...");
+          onPeerDisconnected!();
+        }
       });
 
       // Коннект к LiveKit серверу
