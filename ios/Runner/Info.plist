@@ -4,7 +4,8 @@
 	<dict>
 		<key>BGTaskSchedulerPermittedIdentifiers</key>
 		<array>
-			<string>im.fluffychat.app</string>
+			<string>com.shmartsev.chat.app</string>
+			<!-- <string>im.fluffychat.app</string> -->
 		</array>
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>

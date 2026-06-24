@@ -38,31 +38,20 @@ class _CallPageState extends State<CallPage> {
   }
 
   Future<void> _initLiveKit() async {
+    if (lkPlatformIsMobile()) {
+      await Hardware.instance.setSpeakerphoneOn(false);
+    }
+
     try {
       final room = Room(roomOptions: RoomOptions(
         adaptiveStream: true,
         dynacast: true,
+        defaultAudioOutputOptions: AudioOutputOptions(
+          speakerOn: false, // Принудительно выключаем громкую связь на старте
+        ),
       ));
       _room = room;
       _listener = room.createListener();
-
-      // Магия звука #1: Принудительно включаем разговорный динамик на старте
-      // if (lkPlatformIsMobile()) {
-      //   await Hardware.instance.setSpeakerphoneOn(false);
-      // }
-
-      // Магия звука #2: Перехватываем публикацию аудио-трека собеседника
-      // _listener?.on<TrackSubscribedEvent>((event) async {
-      //   // Проверяем тип трека через строковое значение 'audio'
-      //   if (event.track.kind.toString().contains('audio')) {
-      //     print("🔊 Получен аудио-трек собеседника! Включаем воспроизведение.");
-      //     try {
-      //       await event.track.start(); 
-      //     } catch (e) {
-      //       print("Не удалось принудительно запустить трек: $e");
-      //     }
-      //   }
-      // });
 
       // // Отслеживаем статус собеседника
       // _listener?.on<RoomEvent>((event) {
@@ -76,7 +65,7 @@ class _CallPageState extends State<CallPage> {
 
       // Коннект
       
-      await room.connect('wss://livekit.medgarant-spb.ru', widget.token);
+      await room.connect(widget.url, widget.token);
       
       // Публикуем себя в аудиосеть
       await room.localParticipant?.setMicrophoneEnabled(true);

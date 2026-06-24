@@ -2,6 +2,7 @@ import 'package:fluffychat/pages/profile_screen/incoming_call_page.dart';
 import 'package:fluffychat/utils/additional_api/additional_api.dart';
 import 'package:fluffychat/widgets/fluffy_chat_app.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import 'package:livekit_client/livekit_client.dart' as livekit;
 import 'package:matrix/matrix.dart';
 
@@ -38,6 +39,8 @@ class LiveKitCallHandler {
       final roomId = event.roomId;
       if (roomId == null) return;
 
+      FlutterRingtonePlayer().playRingtone(looping: true, asAlarm: false);
+      
       try {
       // 1. Получаем токен для этой же комнаты
         final callData = await AdditionalApi.instance.createCallToken(
@@ -116,7 +119,8 @@ class LiveKitCallHandler {
       _activeListener?.on<livekit.TrackSubscribedEvent>((event) async {
         print('🔔 Получен новый трек от собеседника: ${event.track.sid}, тип: ${event.track.kind}');
         if (event.track.kind.toString().contains('AUDIO') && livekit.lkPlatformIsMobile()) {
-          print("🔊 Получен аудио-поток собеседника. Стартуем трек.");  
+          print("🔊 Получен аудио-поток собеседника. Стартуем трек."); 
+          FlutterRingtonePlayer().stop(); 
           await livekit.Hardware.instance.setSpeakerphoneOn(false);
         }
       });
