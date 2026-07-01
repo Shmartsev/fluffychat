@@ -130,6 +130,7 @@ class AdditionalApi {
         clientPhone = phone;
         clientCode = code;
         fetchNewTokensFromServer(phone, code);
+        print('Additional API getLogin $phone value: ${data['user_id']} ${data['password_on_create']}');
         return (login: data['user_id'], password: data['password_on_create']);
       }
       return null;
@@ -194,7 +195,7 @@ class AdditionalApi {
 
     // 3. Если токены нашлись, можно сразу проверить их валидность
     if (accessToken.isNotEmpty) {
-      print('Токены подтянуты в AdditionalApi: ${accessToken.substring(0, 5)}...');
+      print('Токены подтянуты в AdditionalApi: ${accessToken.substring(0, 20)}...');
       // Тут можно запустить фоновую проверку/обновление
       final isValid = await _verifyTokenWithServer(accessToken);
       if (!isValid) {
@@ -206,42 +207,43 @@ class AdditionalApi {
     }
   }
 
-  Future<void> initAdditionalApiTokens() async {
-    try {
-      // Читаем из SecureStorage
-      final savedAccess = await TokenStorage.getAccessToken();
-      final savedRefresh = await TokenStorage.getRefreshToken();
+  // Future<void> initAdditionalApiTokens() async {
+  //   try {
+  //     // Читаем из SecureStorage
+  //     final savedAccess = await TokenStorage.getAccessToken();
+  //     final savedRefresh = await TokenStorage.getRefreshToken();
 
-      if (savedAccess == null || savedRefresh == null) {
-        print('Токенов нет в SecureStorage. Ждем первый логин.');
-        return; 
-      }
+  //     if (savedAccess == null || savedRefresh == null) {
+  //       print('Токенов нет в SecureStorage. Ждем первый логин.');
+  //       return; 
+  //     }
 
-      // Подтягиваем их в оперативку нашего синглтона
-      accessToken = savedAccess;
-      refreshToken = savedRefresh;
+  //     // Подтягиваем их в оперативку нашего синглтона
+  //     accessToken = savedAccess;
+  //     refreshToken = savedRefresh;
 
-      print('Токены из TokenStorage подтянуты в инстанс AdditionalApi %accessToken');
+  //     print('Токены из TokenStorage подтянуты в инстанс AdditionalApi %accessToken');
 
-      // Проверяем валидность на сервере
-      final isValid = await _verifyTokenWithServer(accessToken);
+  //     // Проверяем валидность на сервере
+  //     final isValid = await _verifyTokenWithServer(accessToken);
       
-      if (!isValid) {
-        print('Access-токен протух, запускаем обновление через Refresh...');
-        await _refreshYourTokens(refreshToken);
-      } else {
-        print('Токены актуальны, ручки API готовы к работе.');
-      }
+  //     if (!isValid) {
+  //       print('Access-токен протух, запускаем обновление через Refresh...');
+  //       await _refreshYourTokens(refreshToken);
+  //     } else {
+  //       print('Токены актуальны, ручки API готовы к работе.');
+  //     }
       
-    } catch (e) {
-      print('Ошибка инициализации токенов в синглтоне: $e');
-    }
-  }
+  //   } catch (e) {
+  //     print('Ошибка инициализации токенов в синглтоне: $e');
+  //   }
+  // }
 
   // Внутренний метод проверки токена
   Future<bool> _verifyTokenWithServer(String token) async {
     try {
       // Твоя ручка проверки токена (обычно /auth/verify или получение легковесных данных)
+      print(token);
       final response = await http.get(
         Uri.parse('$_baseUrl/mobile_client/me'),
         headers: {
@@ -250,9 +252,10 @@ class AdditionalApi {
       ).timeout(
         const Duration(seconds: 3),
       );
-      
+      print('Проверка токена на сервере ${response.statusCode}');
       return response.statusCode == 200;
     } catch (_) {
+      
       return false; // При любом сбое сети или 401 считаем токен невалидным
     }
   }

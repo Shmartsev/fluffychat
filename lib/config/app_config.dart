@@ -16,7 +16,7 @@ abstract class AppConfig {
   static const String deepLinkPrefix = 'im.fluffychat://chat/';
   static const String schemePrefix = 'matrix:';
   static const String pushNotificationsChannelId = 'fluffychat_push';
-  static const String pushNotificationsAppId = 'com.example.med_chat_app';  // 'chat.fluffy.fluffychat';
+  static const String pushNotificationsAppId = 'com.shmartsev.chat.app'; //'com.example.med_chat_app';  // 'chat.fluffy.fluffychat';
   static const double borderRadius = 2.0;
   static const double spaceBorderRadius = 11.0;
   static const double columnWidth = 360.0;
@@ -29,7 +29,7 @@ abstract class AppConfig {
       'https://fluffychat.im/faq/#how_do_i_find_other_users';
   static const String howDoIGetStickersTutorial =
       'https://fluffychat.im/faq/#how_do_i_get_stickers';
-  static const String appId = '1:73931105896:android:1142d95b44c7441ac63ddd';  // 'im.fluffychat.FluffyChat';
+  static const String appId = 'im.fluffychat.FluffyChat';  // '1:73931105896:android:1142d95b44c7441ac63ddd';  // 
   static const String appOpenUrlScheme = 'im.fluffychat';
   static const String appSsoUrlScheme = 'im.fluffychat.auth';
 

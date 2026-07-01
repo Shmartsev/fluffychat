@@ -5,12 +5,14 @@
 		<key>BGTaskSchedulerPermittedIdentifiers</key>
 		<array>
 			<string>com.shmartsev.chat.app</string>
+			<string>dev.flutter.background.refresh</string>
+			<string>com.pravera.flutter_foreground_task.refresh</string>
 			<!-- <string>im.fluffychat.app</string> -->
 		</array>
 		<key>CFBundleDevelopmentRegion</key>
 		<string>$(DEVELOPMENT_LANGUAGE)</string>
 		<key>CFBundleDisplayName</key>
-		<string>FluffyChat</string>
+		<string>MGChat</string>
 		<key>CFBundleExecutable</key>
 		<string>$(EXECUTABLE_NAME)</string>
 		<key>CFBundleIdentifier</key>

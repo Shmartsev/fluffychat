@@ -29,6 +29,7 @@ Future<void> pushHelper(
   bool useNotificationActions = true,
 }) async {
   try {
+    print(notification.toJson());
     await _tryPushHelper(
       notification,
       client: client,
@@ -75,7 +76,7 @@ Future<void> _tryPushHelper(
   bool useNotificationActions = true,
 }) async {
   final isBackgroundMessage = client == null;
-  Logs().v(
+  Logs().i(
     'Push helper has been started (background=$isBackgroundMessage).',
     notification.toJson(),
   );
