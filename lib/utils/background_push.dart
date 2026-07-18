@@ -360,6 +360,8 @@ class BackgroundPush {
         await Future.delayed(const Duration(seconds: 5));
         _fcmToken = await firebase.getToken();
         Logs().v("_fcmToken = $_fcmToken");
+        final _apnsToken = await firebase.getApnsToken();
+        print('APNs token: $_apnsToken');
         if (_fcmToken == null) throw ('PushToken is null');
       } catch (e, s) {
         Logs().w('[Push] cannot get token', e, e is String ? null : s);

@@ -19,12 +19,12 @@ class NotificationService: UNNotificationServiceExtension {
         
         if let bestAttemptContent = bestAttemptContent {
             // Uncomment to read the push message payload:
-            // os_log("[FluffyChatPushHelper] New message received: %{public}@", log: .default, type: .error, bestAttemptContent.userInfo)
-            os_log("[FluffyChatPushHelper] New message received")
+            os_log("[MGChatPushHelper] New message received: %{public}@", log: .default, type: .error, bestAttemptContent.userInfo)
+            os_log("[MGChatPushHelper] New message received")
             
             guard let roomId = bestAttemptContent.userInfo["room_id"] as? String,
                   let eventId = bestAttemptContent.userInfo["event_id"] as? String else {
-                os_log("[FluffyChatPushHelper] Room ID or Event ID is missing!")
+                os_log("[MGChatPushHelper] Room ID or Event ID is missing!")
                 let emptyContent = UNMutableNotificationContent()
                 contentHandler(emptyContent)
                 return
