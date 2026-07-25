@@ -1363,19 +1363,19 @@ class ChatController extends State<ChatPageWithRoom>
 
       print('Полученные данные для звонка: $callData');
 
-      final eventId = await room.client.sendMessage(
-        room.id,
-        EventTypes.Message,
-        DateTime.now().millisecondsSinceEpoch.toString(),
-        {
-          "msgtype": "m.text",
-          "body": "📞 Голосовой звонок",
-          "custom_call_type": "livekit_audio",
-          "room_name": "${room.id}_call", // Передаем ID комнаты для бэка
-          "caller_id": myId,
-          "caller_name": myName,
-        },
-      );
+      // final eventId = await room.client.sendMessage(
+      //   room.id,
+      //   EventTypes.Message,
+      //   DateTime.now().millisecondsSinceEpoch.toString(),
+      //   {
+      //     "msgtype": "m.text",
+      //     "body": "📞 Голосовой звонок",
+      //     "custom_call_type": "livekit_audio",
+      //     "room_name": "${room.id}_call", // Передаем ID комнаты для бэка
+      //     "caller_id": myId,
+      //     "caller_name": myName,
+      //   },
+      // );
 
       // 3. Открываем экран звонка
       // Используем навигатор из контекста контроллера
@@ -1387,7 +1387,7 @@ class ChatController extends State<ChatPageWithRoom>
             token: callData['token'],
             myId: myId,
             peerId: peerId,
-            callEventId: eventId
+            //callEventId: eventId
           ),
         ),
       );

@@ -26,6 +26,8 @@ import 'dart:ui';
 import 'package:fcm_shared_isolate/fcm_shared_isolate.dart';
 import 'package:fluffychat/l10n/l10n.dart';
 import 'package:fluffychat/main.dart';
+import 'package:fluffychat/utils/livekit/isolated_call_listener.dart';
+import 'package:fluffychat/utils/livekit/livekit_call_handler.dart';
 import 'package:fluffychat/utils/notification_background_handler.dart';
 import 'package:fluffychat/utils/push_helper.dart';
 import 'package:fluffychat/widgets/fluffy_chat_app.dart';
@@ -178,6 +180,12 @@ class BackgroundPush {
       }
       return;
     }
+  }
+  
+  @pragma('vm:entry-point')
+  void backgroundListener() {
+    IsolatedCallListener().startListening();
+    print("[Package Dart] Слушатель VoIP канала успешно запущен и готов к приему!");
   }
 
   Future<void> setupPusher({
@@ -360,9 +368,18 @@ class BackgroundPush {
         await Future.delayed(const Duration(seconds: 5));
         _fcmToken = await firebase.getToken();
         Logs().v("_fcmToken = $_fcmToken");
-        final _apnsToken = await firebase.getApnsToken();
-        print('APNs token: $_apnsToken');
-        if (_fcmToken == null) throw ('PushToken is null');
+        
+        //final _apnsToken = await firebase.getApnsToken();
+        //print('APNs token: $_apnsToken');
+        backgroundListener();
+        if (_fcmToken == null) {
+          throw ('PushToken is null');
+        } else {
+          if (PlatformInfos.isAndroid && _fcmToken!.isNotEmpty) {
+            await _saveTokenToBackend(_fcmToken!, 'android');
+          }
+        }
+        
       } catch (e, s) {
         Logs().w('[Push] cannot get token', e, e is String ? null : s);
         await _noFcmWarning();
@@ -461,6 +478,10 @@ class BackgroundPush {
       useNotificationActions:
           false, // Buggy with UP: https://codeberg.org/UnifiedPush/flutter-connector/issues/34
     );
+  }
+  
+  Future<void> _saveTokenToBackend(String token, String platform) async {
+    await LiveKitCallHandler.sendVoIPTokenToBackend(token, platform, client.userID!);
   }
 }
 

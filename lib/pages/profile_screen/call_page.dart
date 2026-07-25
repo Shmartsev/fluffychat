@@ -7,7 +7,7 @@ class CallPage extends StatefulWidget {
   final String token;
   final String myId;
   final String peerId;
-  final String callEventId;
+  //final String callEventId;
 
   const CallPage({
     Key? key,
@@ -15,7 +15,7 @@ class CallPage extends StatefulWidget {
     required this.token,
     required this.myId,
     required this.peerId,
-    required this.callEventId,
+    //required this.callEventId,
   }) : super(key: key);
 
   @override
@@ -126,7 +126,7 @@ class _CallPageState extends State<CallPage> {
             ),
             const SizedBox(height: 8),
             Text(
-              !_isConnected ? 'Подключение к серверу...' : (_isPeerJoined ? 'На связи' : 'Ожидание врача...'),
+              !_isConnected ? 'Подключение к серверу...' : (_isPeerJoined ? 'На связи' : 'Ожидание...'),
               style: const TextStyle(color: Colors.white70, fontSize: 16),
             ),
             const SizedBox(height: 100),

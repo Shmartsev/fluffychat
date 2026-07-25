@@ -19,6 +19,7 @@ class AdditionalApi {
   String clientCode = '';
   String accessToken = '';
   String refreshToken = '';
+  String userId = '';
   // Приватный конструктор
   AdditionalApi._internal();
   
@@ -131,6 +132,8 @@ class AdditionalApi {
         clientCode = code;
         fetchNewTokensFromServer(phone, code);
         print('Additional API getLogin $phone value: ${data['user_id']} ${data['password_on_create']}');
+        userId = data['user_id'];
+        await TokenStorage.saveUserId(userId: userId);
         return (login: data['user_id'], password: data['password_on_create']);
       }
       return null;
@@ -500,7 +503,7 @@ class AdditionalApi {
     required String participantName,
   }) async {
     final response = await http.post(
-      Uri.parse('https://dev.mg-backend.it-ivs.ru/mg-backend/livekit/token'),
+      Uri.parse('https://mg-backend.it-ivs.ru/mg-backend/livekit/dial_call'),
         headers: {
           'Content-Type': 'application/json',
           //'Authorization': 'Token $token',
@@ -519,13 +522,40 @@ class AdditionalApi {
     return {}; // В случае ошибки возвращаем пустой словарь, который нужно обработать в UI
   }
 
+  Future<Map<String, dynamic>> acceptCall({
+    required String roomId
+  }) async {
+    if (userId.isEmpty) {
+      userId = await TokenStorage.getUserId() ?? '';
+    }
+    final response = await http.post(
+      Uri.parse('https://mg-backend.it-ivs.ru/mg-backend/livekit/accept_call'),
+        headers: {
+          'Content-Type': 'application/json',
+          //'Authorization': 'Token $token',
+        },
+        body: jsonEncode({
+          "participant_id": userId,
+          "room_name": roomId,
+        }),
+    );
+    if (response.statusCode == 200) {
+      print('Call token response: ${response.statusCode} ${response.body}');
+      final data = jsonDecode(response.body);
+      data['userId'] = userId;
+      data['peerId'] = roomId.replaceFirst('_$userId', '').replaceFirst('room_', '');
+      return data; // Ждем тут {"url": "wss://...", "token": "..."}
+    }
+    return {}; // В случае ошибки возвращаем пустой словарь, который нужно обработать в UI
+  }
+
   // 2. Сигнал о завершении звонка
   Future<void> hangupCall({
     required String participantId,
     required String targetParticipantId,
   }) async {
     final response = await http.post(
-      Uri.parse('https://dev.mg-backend.it-ivs.ru/mg-backend/livekit/hangup'),
+      Uri.parse('https://mg-backend.it-ivs.ru/mg-backend/livekit/hangup'),
         headers: {
           'Content-Type': 'application/json',
           //'Authorization': 'Token $token',
@@ -539,6 +569,29 @@ class AdditionalApi {
       print('Call hangup response: ${response.statusCode} ${response.body}');
       final data = jsonDecode(response.body);
        // Ждем тут {"url": "wss://...", "token": "..."}
+    }
+  }
+
+  Future<void> registerVoIPToken(String token, String platform, String userId) async {
+    if (userId.isEmpty) {
+      userId = await TokenStorage.getUserId() ?? '';
+    }
+    
+    final response = await http.post(
+      Uri.parse('https://mg-backend.it-ivs.ru/mg-backend/livekit/add_device_token'),
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: jsonEncode({
+          "user_id": userId,
+          "device_token": token,
+          "platform": platform,
+        }),
+    );
+    if (response.statusCode == 200) {
+      print('VoIP token registration response: ${response.statusCode} ${response.body}');
+      final data = jsonDecode(response.body);
+       // Ждем тут {"status": "ok"}
     }
   }
 }

@@ -1,5 +1,6 @@
 import 'package:fluffychat/pages/profile_screen/incoming_call_page.dart';
 import 'package:fluffychat/utils/additional_api/additional_api.dart';
+import 'package:fluffychat/utils/livekit/isolated_call_listener.dart';
 import 'package:fluffychat/widgets/fluffy_chat_app.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
@@ -15,6 +16,90 @@ class LiveKitCallHandler {
   static String? _currentPeerId;
 
   static VoidCallback? onPeerDisconnected;
+
+  static Future<void> sendVoIPTokenToBackend(String token, String platform, String userId) async {
+    try {
+      await AdditionalApi.instance.registerVoIPToken(token, platform, userId);
+      print("LiveKitCallHandler: Токен звонков $platform успешно зарегистрирован на сервере");
+    } catch (e) {
+      print("Ошибка отправки токена на бэкенд: $e");
+    }
+  }
+
+  static Future<void> handleAcceptCall(String roomId) async {
+    final callData = await AdditionalApi.instance.acceptCall(roomId: roomId);
+    final url = callData['server_url']?.toString() ?? '';
+    final token = callData['token']?.toString() ?? '';
+    final myId = callData['userId'].toString();
+    final peerId = callData['peerId'].toString();
+
+    if (url.isEmpty || token.isEmpty) {
+      print("❌ Бэкенд не вернул URL или Токен для LiveKit");
+      return;
+    }
+
+    try {
+      print("📞 Инициализация фонового Room...");
+      final room = livekit.Room(roomOptions: livekit.RoomOptions(
+        adaptiveStream: true,
+        dynacast: true,
+        defaultAudioOutputOptions: livekit.AudioOutputOptions(
+          speakerOn: false, // Принудительно выключаем громкую связь на старте
+        ),
+      ));
+      _activeRoom = room;
+      _activeListener = room.createListener();
+
+      _activeListener?.on((event) => print("LiveKit Event: $event"));
+
+      // Слушаем и принудительно запускаем входящий звук
+      _activeListener?.on<livekit.TrackSubscribedEvent>((event) async {
+        print('🔔 Получен новый трек от собеседника: ${event.track.sid}, тип: ${event.track.kind}');
+        if (event.track.kind.toString().contains('AUDIO') && livekit.lkPlatformIsMobile()) {
+          print("🔊 Получен аудио-поток собеседника. Стартуем трек."); 
+          FlutterRingtonePlayer().stop(); 
+          await livekit.Hardware.instance.setSpeakerphoneOn(false);
+          await IsolatedCallListener.setConnected();
+        }
+      });
+
+      // Собеседник повесил трубку — чистим фоновые ресурсы
+      _activeListener?.on<livekit.ParticipantDisconnectedEvent>((_) {
+        print("⏹ Собеседник отключился. Завершаем сессию.");
+        stopCurrentCall(myId, peerId);
+        if (onPeerDisconnected != null) {
+          print("📣 Передаем сигнал дисконнекта в UI...");
+          onPeerDisconnected!();
+        }
+      });
+
+      // Коннект к LiveKit серверу
+      print("📡 Подключение к WebRTC: $url");
+      await room.connect(url, token);
+      
+      // Публикуем свой микрофон
+      print("Connected to LiveKit. Публикуем микрофон...");
+      await room.localParticipant?.setMicrophoneEnabled(true);
+      
+      print("✅ Фоновый автоответ успешно отработал. Вы на связи.");
+    } catch (e) {
+      print("❌ Ошибка LiveKit соединения: $e");
+      stopCurrentCall(myId, peerId);
+    }
+    // final globalContext = FluffyChatApp.router.routerDelegate.navigatorKey.currentContext;
+    // if (globalContext != null) {
+    //   Navigator.push(
+    //     globalContext,
+    //     MaterialPageRoute(
+    //       builder: (context) => IncomingCallPage(
+    //         callerName: 'Абонент',
+    //         url: url,
+    //         token: token,
+    //       ),
+    //     ),
+    //   );
+    // }
+  }
   /// Перехватчик нового события в комнате.
   /// Вызывается ядром Matrix нативно при обновлении таймлайна, БЕЗ использования .listen()
   static Future<void> handleIncomingTimelineEvent(Event event, Client client) async {
@@ -175,6 +260,7 @@ class LiveKitCallHandler {
         participantId: myId,
         targetParticipantId: peerId,
       );
+      await IsolatedCallListener.endCall();
     } catch (e) {
       print("Ошибка при очистке ресурсов: $e");
     } finally {
