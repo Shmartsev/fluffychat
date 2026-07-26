@@ -1,11 +1,9 @@
-import 'package:fluffychat/pages/profile_screen/incoming_call_page.dart';
 import 'package:fluffychat/utils/additional_api/additional_api.dart';
 import 'package:fluffychat/utils/livekit/isolated_call_listener.dart';
-import 'package:fluffychat/widgets/fluffy_chat_app.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_foreground_task/flutter_foreground_task.dart';
 import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import 'package:livekit_client/livekit_client.dart' as livekit;
-import 'package:matrix/matrix.dart';
 
 
 class LiveKitCallHandler {
@@ -24,6 +22,50 @@ class LiveKitCallHandler {
     } catch (e) {
       print("Ошибка отправки токена на бэкенд: $e");
     }
+  }
+
+  static void initForegroundTask() {
+    FlutterForegroundTask.init(
+      androidNotificationOptions: AndroidNotificationOptions(
+        channelId: 'call_channel',
+        channelName: 'Звонки',
+        channelDescription: 'Уведомление активного звонка',
+        channelImportance: NotificationChannelImportance.LOW,
+        priority: NotificationPriority.LOW,
+      ),
+      iosNotificationOptions: const IOSNotificationOptions(),
+      foregroundTaskOptions: ForegroundTaskOptions(
+        eventAction: ForegroundTaskEventAction.nothing(),
+        autoRunOnBoot: false,
+        allowWakeLock: true, // НЕ ДАЕТ СПАТЬ CPU ПРИ БЛОКИРОВКЕ
+        allowWifiLock: true, // НЕ ДАЕТ ОТКЛЮЧАТЬ WI-FI/3G
+      ),
+    );
+  }
+
+  static Future<dynamic> startCallService() async {
+    // 1. Проверяем и просим разрешение на уведомления (Android 13+)
+    final notificationPermission = 
+        await FlutterForegroundTask.checkNotificationPermission();
+    if (notificationPermission != NotificationPermission.granted) {
+      await FlutterForegroundTask.requestNotificationPermission();
+    }
+
+    // 2. Запускаем переднеплановый сервис
+    if (await FlutterForegroundTask.isRunningService) {
+      return FlutterForegroundTask.restartService();
+    } else {
+      return FlutterForegroundTask.startService(
+        serviceId: 256,
+        notificationTitle: 'MGChat',
+        notificationText: 'Идет звонок...',
+        notificationIcon: const NotificationIcon(metaDataName: 'ic_launcher'),
+      );
+    }
+  }
+
+  static Future<dynamic> stopCallService() {
+    return FlutterForegroundTask.stopService();
   }
 
   static Future<void> handleAcceptCall(String roomId) async {
@@ -50,6 +92,8 @@ class LiveKitCallHandler {
       _activeRoom = room;
       _activeListener = room.createListener();
 
+      initForegroundTask();
+      await startCallService();
       _activeListener?.on((event) => print("LiveKit Event: $event"));
 
       // Слушаем и принудительно запускаем входящий звук
@@ -59,7 +103,9 @@ class LiveKitCallHandler {
           print("🔊 Получен аудио-поток собеседника. Стартуем трек."); 
           FlutterRingtonePlayer().stop(); 
           await livekit.Hardware.instance.setSpeakerphoneOn(false);
-          await IsolatedCallListener.setConnected();
+          if (livekit.lkPlatform() == livekit.PlatformType.iOS) {
+            await IsolatedCallListener.setConnected();
+          }
         }
       });
 
@@ -99,70 +145,6 @@ class LiveKitCallHandler {
     //     ),
     //   );
     // }
-  }
-  /// Перехватчик нового события в комнате.
-  /// Вызывается ядром Matrix нативно при обновлении таймлайна, БЕЗ использования .listen()
-  static Future<void> handleIncomingTimelineEvent(Event event, Client client) async {
-    print('Получено новое событие в таймлайне: ${event.eventId}, тип: ${event.type}');
-    // Проверяем только наш стабильный тип сообщения
-    if (event.type == EventTypes.Message &&
-        event.content['custom_call_type'] == 'livekit_audio') {
-      
-      _currentMyId = client.userID ?? '';
-      _currentPeerId = event.content['caller_id']?.toString() ?? '';
-
-      final profile = await client.getUserProfile(_currentMyId!);
-      final myName = profile.displayname ?? _currentMyId;
-      
-      if (_currentPeerId == _currentMyId) return; // Игнорируем исходящие
-
-      // Проверка на свежесть (в пределах 30 секунд)
-      final serverTime = event.originServerTs.millisecondsSinceEpoch;
-      final now = DateTime.now().millisecondsSinceEpoch;
-      if ((now - serverTime).abs() > 30000) return;
-
-      final roomId = event.roomId;
-      if (roomId == null) return;
-
-      FlutterRingtonePlayer().playRingtone(looping: true, asAlarm: false);
-      
-      try {
-      // 1. Получаем токен для этой же комнаты
-        final callData = await AdditionalApi.instance.createCallToken(
-          participantId: _currentMyId!,
-          targetParticipantId: _currentPeerId!,
-          participantName: myName!, // Или твое имя из Matrix
-        );
-
-        final url = callData['server_url']?.toString() ?? '';
-        final token = callData['token']?.toString() ?? '';
-
-        if (url.isEmpty || token.isEmpty) {
-          print("❌ Бэкенд не вернул URL или Токен для LiveKit");
-          return;
-        }
-
-        final globalContext = FluffyChatApp.router.routerDelegate.navigatorKey.currentContext;
-        if (globalContext != null) {
-          Navigator.push(
-            globalContext,
-            MaterialPageRoute(
-              builder: (context) => IncomingCallPage(
-                callerName: event.content['caller_name']?.toString() ?? 'Абонент',
-                url: url,
-                token: token,
-              ),
-            ),
-          );
-        }
-        
-      } catch (e) {
-        // _rejectCall();
-
-        print("❌ Ошибка при подготовке фонового автоответа: $e");
-        _cleanUp(_currentMyId!, _currentPeerId!);
-      }
-    }
   }
 
   static Future<void> connectActiveCall(String url, String token) async {
@@ -260,12 +242,16 @@ class LiveKitCallHandler {
         participantId: myId,
         targetParticipantId: peerId,
       );
-      await IsolatedCallListener.endCall();
+      if (livekit.lkPlatform() == livekit.PlatformType.iOS) {
+        await IsolatedCallListener.endCall();
+      }
+      
     } catch (e) {
       print("Ошибка при очистке ресурсов: $e");
     } finally {
       _activeRoom = null;
       _activeListener = null;
+      stopCallService();
     }
   }
 }

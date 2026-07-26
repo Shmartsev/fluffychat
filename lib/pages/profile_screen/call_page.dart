@@ -1,4 +1,5 @@
 import 'package:fluffychat/utils/additional_api/additional_api.dart';
+import 'package:fluffychat/utils/livekit/livekit_call_handler.dart';
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
 
@@ -38,6 +39,10 @@ class _CallPageState extends State<CallPage> {
   }
 
   Future<void> _initLiveKit() async {
+    
+    LiveKitCallHandler.initForegroundTask();
+    await LiveKitCallHandler.startCallService();
+    
     if (lkPlatformIsMobile()) {
       await Hardware.instance.setSpeakerphoneOn(false);
     }
@@ -96,6 +101,7 @@ class _CallPageState extends State<CallPage> {
         participantId: widget.myId,
         targetParticipantId: widget.peerId,
       );
+      LiveKitCallHandler.stopCallService();
     } catch (e) {
       print("Ошибка при закрытии WebRTC: $e");
     } finally {

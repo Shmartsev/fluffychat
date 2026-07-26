@@ -26,6 +26,7 @@ import 'dart:ui';
 import 'package:fcm_shared_isolate/fcm_shared_isolate.dart';
 import 'package:fluffychat/l10n/l10n.dart';
 import 'package:fluffychat/main.dart';
+import 'package:fluffychat/utils/additional_api/token_storage.dart';
 import 'package:fluffychat/utils/livekit/isolated_call_listener.dart';
 import 'package:fluffychat/utils/livekit/livekit_call_handler.dart';
 import 'package:fluffychat/utils/notification_background_handler.dart';
@@ -367,7 +368,11 @@ class BackgroundPush {
       try {
         await Future.delayed(const Duration(seconds: 5));
         _fcmToken = await firebase.getToken();
-        Logs().v("_fcmToken = $_fcmToken");
+        Logs().v("_fcmToken = $_fcmToken ${client.userID!}");
+        final uid = await TokenStorage.getUserId();
+        if (uid == null) {
+          TokenStorage.saveUserId(userId: client.userID!);
+        }
         
         //final _apnsToken = await firebase.getApnsToken();
         //print('APNs token: $_apnsToken');

@@ -527,6 +527,7 @@ class AdditionalApi {
   }) async {
     if (userId.isEmpty) {
       userId = await TokenStorage.getUserId() ?? '';
+      print(userId);
     }
     final response = await http.post(
       Uri.parse('https://mg-backend.it-ivs.ru/mg-backend/livekit/accept_call'),
@@ -544,6 +545,7 @@ class AdditionalApi {
       final data = jsonDecode(response.body);
       data['userId'] = userId;
       data['peerId'] = roomId.replaceFirst('_$userId', '').replaceFirst('room_', '');
+      print(data['peerId']);
       return data; // Ждем тут {"url": "wss://...", "token": "..."}
     }
     return {}; // В случае ошибки возвращаем пустой словарь, который нужно обработать в UI

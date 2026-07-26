@@ -18,6 +18,17 @@ class IsolatedCallListener {
     // Вешаем реактивный слушатель на нативный канал
     _channel.setMethodCallHandler((MethodCall call) async {
       //print("[Package Dart] Пуш звонка успешно долетел до Dart-изолята! START ${call.method}");
+      if (call.method == 'onIncomingCallPushAndroid') {
+        print("[Package Dart] Пуш звонка успешно долетел до Dart-изолята! START ${call.method}");
+        final Map<dynamic, dynamic> pushPayload = call.arguments;
+        print("[Package Dart] Полный Payload: $pushPayload");
+        final roomId = pushPayload['room_id'] ?? '';
+        if (roomId.isNotEmpty) {
+          _connectToLiveKitRoom(roomId);
+        }
+        
+      }
+
       if (call.method == 'onVoIPTokenReceived') {
         final iosVoipToken = call.arguments;
         print("[Dart] Успешно получен нативный iOS VoIP токен: $iosVoipToken");

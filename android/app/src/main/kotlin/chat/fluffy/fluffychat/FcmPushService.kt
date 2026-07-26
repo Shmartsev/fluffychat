@@ -22,7 +22,7 @@ class FcmPushService : FcmSharedIsolateService() {
 
         // 1. Проверяем, является ли пуш приглашением в звонок LiveKit
         if (data["type"] == "livekit_call_invite") {
-            val roomId = data["room_id"] ?: ""
+            val roomId = data["room_name"] ?: ""
             val callerName = data["caller_name"] ?: "Входящий звонок"
 
             // 2. Переключаемся на главный поток Android
@@ -37,6 +37,7 @@ class FcmPushService : FcmSharedIsolateService() {
                 val arguments = HashMap<String, String>()
                 arguments["room_id"] = roomId
                 arguments["caller_name"] = callerName
+                //arguments["data"] = data
 
                 // Выстреливаем метод прямо в существующий фоновый Dart-изолят пакета!
                 channel.invokeMethod("onIncomingCallPushAndroid", arguments)
