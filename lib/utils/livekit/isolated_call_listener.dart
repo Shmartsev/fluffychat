@@ -1,5 +1,6 @@
 import 'package:fluffychat/utils/livekit/livekit_call_handler.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class IsolatedCallListener {
   // Название канала ДОЛЖНО СТРОГО до буквы совпадать со Swift-кодом!
@@ -22,9 +23,13 @@ class IsolatedCallListener {
         print("[Package Dart] Пуш звонка успешно долетел до Dart-изолята! START ${call.method}");
         final Map<dynamic, dynamic> pushPayload = call.arguments;
         print("[Package Dart] Полный Payload: $pushPayload");
+        await showCallFullScreenNotification(
+          callerName: pushPayload['caller_name'] ?? 'Неизвестный',
+          roomId: pushPayload['room_id'] ?? '',
+        );
         final roomId = pushPayload['room_id'] ?? '';
         if (roomId.isNotEmpty) {
-          _connectToLiveKitRoom(roomId);
+          //_connectToLiveKitRoom(roomId);
         }
         
       }
@@ -66,11 +71,69 @@ class IsolatedCallListener {
     }
   }
 
+  Future<void> showCallFullScreenNotification({
+    required String callerName,
+    required String roomId,
+  }) async {
+    final fln = FlutterLocalNotificationsPlugin();
+      final androidImplementation = fln.resolvePlatformSpecificImplementation<
+        AndroidFlutterLocalNotificationsPlugin>();
+        
+    if (androidImplementation != null) {
+      await androidImplementation.requestFullScreenIntentPermission();
+    }
+
+    const androidDetails = AndroidNotificationDetails(
+      'voip_calls_channel_id',
+      'Входящие вызовы',
+      channelDescription: 'Уведомления о входящих звонках',
+      importance: Importance.max,
+      priority: Priority.max,
+      category: AndroidNotificationCategory.call,
+      
+      // Вот эти параметры заставляют Android открыть fullScreenIntent:
+      fullScreenIntent: true,
+      ongoing: true, // Чтобы пользователь не смахнул случайным жестом
+      autoCancel: false,
+      audioAttributesUsage: AudioAttributesUsage.notificationRingtone,
+
+      // ДОБАВЛЯЕМ НАТИВНЫЕ КНОПКИ ДЛЯ ЗВОНКА:
+      actions: const <AndroidNotificationAction>[
+        AndroidNotificationAction(
+          'decline_call',
+          'Отклонить',
+          showsUserInterface: false,
+          cancelNotification: true,
+        ),
+        AndroidNotificationAction(
+          'accept_call',
+          'Ответить',
+          showsUserInterface: true, // Развернет приложение при нажатии
+          cancelNotification: true,
+        ),
+      ],
+    );
+
+    const platformDetails = NotificationDetails(
+      android: androidDetails,
+    );
+
+    await fln.show(
+      id: 1001, // Идентификатор уведомления звонка
+      title: 'Входящий звонок',
+      body: '$callerName звонит вам',
+      notificationDetails: platformDetails,
+      payload: roomId, // Передаем ID комнаты во Flutter
+    );
+  }
+
   // Метод подключения к LiveKit
   Future<void> _connectToLiveKitRoom(String roomId) async {
     try {
       print("[Package Dart] Инициализируем аудиосессию для комнаты: $roomId");
-      await LiveKitCallHandler.handleAcceptCall(roomId);
+      //await LiveKitCallHandler.handleAcceptCall(roomId);
+
+      
       
       // Настраиваем звуковую подсистему для звонка
       // await Hardware().selectAudioOutput(AudioOutput.earpiece);
