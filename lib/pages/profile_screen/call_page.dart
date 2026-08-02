@@ -9,6 +9,7 @@ class CallPage extends StatefulWidget {
   final String myId;
   final String peerId;
   //final String callEventId;
+  final VoidCallback onEndCall;
 
   const CallPage({
     Key? key,
@@ -17,6 +18,7 @@ class CallPage extends StatefulWidget {
     required this.myId,
     required this.peerId,
     //required this.callEventId,
+    required this.onEndCall,
   }) : super(key: key);
 
   @override

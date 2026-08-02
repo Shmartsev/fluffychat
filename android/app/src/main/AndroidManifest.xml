@@ -52,7 +52,7 @@
             android:theme="@style/LaunchTheme"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode"
             android:hardwareAccelerated="true"
-            
+            android:showOnLockScreen="true"
             android:showWhenLocked="true"
             android:turnScreenOn="true"
             android:windowSoftInputMode="adjustResize"
@@ -139,6 +139,8 @@
 
         <!-- From flutter_local_notifications package for notification actions -->
         <receiver android:exported="false" android:name="com.dexterous.flutterlocalnotifications.ActionBroadcastReceiver" />
+
+        <receiver android:name=".CallNotificationReceiver" android:exported="false" />
 
         <!-- To make notifications available in Android Auto -->
         <meta-data

@@ -10,8 +10,6 @@
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
 		609046320A2D7D2B0D36583B /* Pods_FluffyChat_Share.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = C9EB6E6475A19949A37A2634 /* Pods_FluffyChat_Share.framework */; };
-		6AAC381B300B886900C2A5BA /* VoIPManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AAC381A300B886900C2A5BA /* VoIPManager.swift */; };
-		6AAC381C300B886900C2A5BA /* VoIPManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AAC381A300B886900C2A5BA /* VoIPManager.swift */; };
 		6AAC381D300B886900C2A5BA /* VoIPManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6AAC381A300B886900C2A5BA /* VoIPManager.swift */; };
 		74858FAF1ED2DC5600515810 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 74858FAE1ED2DC5600515810 /* AppDelegate.swift */; };
 		97C146FC1CF9000F007C117D /* Main.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 97C146FA1CF9000F007C117D /* Main.storyboard */; };
@@ -513,7 +511,6 @@
 			buildActionMask = 2147483647;
 			files = (
 				C1005C45261071B5002F4F32 /* ShareViewController.swift in Sources */,
-				6AAC381C300B886900C2A5BA /* VoIPManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -521,7 +518,6 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				6AAC381B300B886900C2A5BA /* VoIPManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

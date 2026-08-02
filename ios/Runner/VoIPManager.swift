@@ -2,7 +2,8 @@ import Foundation
 import PushKit
 import CallKit
 import os
-import Flutter // Обязательно импортируем Flutter для каналов
+import Flutter
+// Обязательно импортируем Flutter для каналов
 
 class VoIPManager: NSObject, PKPushRegistryDelegate, CXProviderDelegate {
     
@@ -57,7 +58,7 @@ class VoIPManager: NSObject, PKPushRegistryDelegate, CXProviderDelegate {
 
         let roomId = userInfo["room"] as? String ?? "unknown_room"
         UserDefaults.standard.set(roomId, forKey: "last_incoming_room_id")
-        
+        UserDefaults.standard.set(callerName, forKey: "last_incoming_caller_name")
         let callUUID = UUID()
         
         self.currentCallUUID = callUUID
@@ -87,12 +88,14 @@ class VoIPManager: NSObject, PKPushRegistryDelegate, CXProviderDelegate {
     func provider(_ provider: CXProvider, perform action: CXAnswerCallAction) {
         // Достаем roomId, который мы сохранили в кэш при получении пуша (Шаг 2 ниже)
         let roomId = UserDefaults.standard.string(forKey: "last_incoming_room_id") ?? ""
+        let callerName = UserDefaults.standard.string(forKey: "last_incoming_caller_name") ?? "Неизвестный"
+        let userInfo: [String: Any] = ["room_id": roomId, "caller_name": callerName]
 
         DispatchQueue.main.async {
             if let messenger = self.backgroundMessenger {
                 let channel = FlutterMethodChannel(name: "com.mgchat/voip", binaryMessenger: messenger)
                 // Отправляем во Flutter четкий сигнал: пользователь поднял трубку!
-                channel.invokeMethod("onCallAccepted", arguments: roomId)
+                channel.invokeMethod("onCallAccepted", arguments: userInfo)
             }
         }
         action.fulfill() // Сообщаем системе iOS, что действие выполнено успешно

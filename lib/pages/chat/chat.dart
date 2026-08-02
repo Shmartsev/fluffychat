@@ -1388,6 +1388,7 @@ class ChatController extends State<ChatPageWithRoom>
             myId: myId,
             peerId: peerId,
             //callEventId: eventId
+            onEndCall: Navigator.of(context).pop, // Закрываем экран звонка по завершении
           ),
         ),
       );

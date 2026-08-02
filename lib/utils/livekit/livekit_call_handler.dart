@@ -1,10 +1,9 @@
-import 'package:fluffychat/pages/profile_screen/incoming_call_page.dart';
 import 'package:fluffychat/utils/additional_api/additional_api.dart';
+import 'package:fluffychat/utils/livekit/call_screen.dart';
 import 'package:fluffychat/utils/livekit/isolated_call_listener.dart';
 import 'package:fluffychat/widgets/fluffy_chat_app.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_foreground_task/flutter_foreground_task.dart';
-import 'package:flutter_ringtone_player/flutter_ringtone_player.dart';
 import 'package:livekit_client/livekit_client.dart' as livekit;
 
 
@@ -70,13 +69,13 @@ class LiveKitCallHandler {
     return FlutterForegroundTask.stopService();
   }
 
-  static Future<void> handleAcceptCall(String roomId) async {
+  static Future<void> handleAcceptCall(String roomId, String callerName) async {
     final callData = await AdditionalApi.instance.acceptCall(roomId: roomId);
     final url = callData['server_url']?.toString() ?? '';
     final token = callData['token']?.toString() ?? '';
     final myId = callData['userId'].toString();
     final peerId = callData['peerId'].toString();
-    final callerName = callData['caller_name'].toString();
+    //final callerName = callData['caller_name'].toString();
 
     _currentMyId = myId;
     _currentPeerId = peerId;
@@ -90,76 +89,32 @@ class LiveKitCallHandler {
 
     print("[LiveKitCallHandler] Starting CallPage continued");
 
-    // try {
-    //   print("📞 Инициализация фонового Room...");
-    //   final room = livekit.Room(roomOptions: livekit.RoomOptions(
-    //     adaptiveStream: true,
-    //     dynacast: true,
-    //     defaultAudioOutputOptions: livekit.AudioOutputOptions(
-    //       speakerOn: false, // Принудительно выключаем громкую связь на старте
-    //     ),
-    //   ));
-    //   _activeRoom = room;
-    //   _activeListener = room.createListener();
+    connectActiveCall(url, token);
 
-    //   initForegroundTask();
-    //   await startCallService();
-    //   _activeListener?.on((event) => print("LiveKit Event: $event"));
-
-    //   // Слушаем и принудительно запускаем входящий звук
-    //   _activeListener?.on<livekit.TrackSubscribedEvent>((event) async {
-    //     print('🔔 Получен новый трек от собеседника: ${event.track.sid}, тип: ${event.track.kind}');
-    //     if (event.track.kind.toString().contains('AUDIO') && livekit.lkPlatformIsMobile()) {
-    //       print("🔊 Получен аудио-поток собеседника. Стартуем трек."); 
-    //       FlutterRingtonePlayer().stop(); 
-    //       await livekit.Hardware.instance.setSpeakerphoneOn(false);
-    //       if (livekit.lkPlatform() == livekit.PlatformType.iOS) {
-    //         await IsolatedCallListener.setConnected();
-    //       }
-    //     }
-    //   });
-
-    //   // Собеседник повесил трубку — чистим фоновые ресурсы
-    //   _activeListener?.on<livekit.ParticipantDisconnectedEvent>((_) {
-    //     print("⏹ Собеседник отключился. Завершаем сессию.");
-    //     stopCurrentCall(myId, peerId);
-    //     if (onPeerDisconnected != null) {
-    //       print("📣 Передаем сигнал дисконнекта в UI...");
-    //       onPeerDisconnected!();
-    //     }
-    //   });
-
-    //   // Коннект к LiveKit серверу
-    //   print("📡 Подключение к WebRTC: $url");
-    //   await room.connect(url, token);
-      
-    //   // Публикуем свой микрофон
-    //   print("Connected to LiveKit. Публикуем микрофон...");
-    //   await room.localParticipant?.setMicrophoneEnabled(true);
-      
-    //   print("✅ Фоновый автоответ успешно отработал. Вы на связи.");
-    // } catch (e) {
-    //   print("❌ Ошибка LiveKit соединения: $e");
-    //   stopCurrentCall(myId, peerId);
-    // }
-    final globalContext = FluffyChatApp.router.routerDelegate.navigatorKey.currentContext;
-    print('globalContext = $globalContext');
-    if (globalContext != null) {
-      Navigator.push(
-        globalContext,
-        MaterialPageRoute(
-          builder: (context) => IncomingCallPage(
-            callerName: callerName,
-            url: url,
-            token: token,
-          ),
+    final navState = FluffyChatApp.router.routerDelegate.navigatorKey.currentState;
+    navState?.push(
+      MaterialPageRoute(
+        builder: (context) => CallScreen(
+          callerName: callerName,
+          onEndCall: navState.pop
         ),
-      );
+      ),
+    );
+    
+  }
+
+  static void closeCallScreenIfOpen() {
+    final navState = FluffyChatApp.router.routerDelegate.navigatorKey.currentState;
+    // Закрываем верхний экран (CallScreen)
+    if (navState?.canPop() ?? false) {
+      navState?.pop();
     }
   }
 
   static Future<void> connectActiveCall(String url, String token) async {
     if (_currentMyId == null || _currentPeerId == null) return;
+    initForegroundTask();
+    await startCallService();
     await _startSilentCall(
       url: url,
       token: token,
@@ -191,8 +146,8 @@ class LiveKitCallHandler {
       _activeRoom = room;
       _activeListener = room.createListener();
 
-      initForegroundTask();
-      await startCallService();
+      
+      
 
       _activeListener?.on((event) => print("LiveKit Event: $event"));
 
@@ -201,8 +156,8 @@ class LiveKitCallHandler {
         print('🔔 Получен новый трек от собеседника: ${event.track.sid}, тип: ${event.track.kind}');
         if (event.track.kind.toString().contains('AUDIO') && livekit.lkPlatformIsMobile()) {
           print("🔊 Получен аудио-поток собеседника. Стартуем трек."); 
-          FlutterRingtonePlayer().stop(); 
-          await livekit.Hardware.instance.setSpeakerphoneOn(false);
+          //await livekit.Hardware.instance.setSpeakerphoneOn(false);
+          print("✅ Фоновый автоответ успешно отработал. Вы на связи.");
           if (livekit.lkPlatform() == livekit.PlatformType.iOS) {
             await IsolatedCallListener.setConnected();
           }
@@ -220,14 +175,15 @@ class LiveKitCallHandler {
       });
 
       // Коннект к LiveKit серверу
-      print("📡 Подключение к WebRTC: $url");
+      //print("📡 Подключение к WebRTC: $url");
       await room.connect(url, token);
       
       // Публикуем свой микрофон
-      print("Connected to LiveKit. Публикуем микрофон...");
+      //print("Connected to LiveKit. Публикуем микрофон...");
       await room.localParticipant?.setMicrophoneEnabled(true);
       
-      print("✅ Фоновый автоответ успешно отработал. Вы на связи.");
+      
+      
     } catch (e) {
       print("❌ Ошибка LiveKit соединения: $e");
       stopCurrentCall(myId, peerId);
@@ -269,6 +225,7 @@ class LiveKitCallHandler {
       _activeRoom = null;
       _activeListener = null;
       stopCallService();
+      closeCallScreenIfOpen();
     }
   }
 }

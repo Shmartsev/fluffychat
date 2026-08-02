@@ -1,6 +1,5 @@
 import 'package:fluffychat/utils/livekit/livekit_call_handler.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 
 class IsolatedCallListener {
   // Название канала ДОЛЖНО СТРОГО до буквы совпадать со Swift-кодом!
@@ -23,15 +22,22 @@ class IsolatedCallListener {
         print("[Package Dart] Пуш звонка успешно долетел до Dart-изолята! START ${call.method}");
         final Map<dynamic, dynamic> pushPayload = call.arguments;
         print("[Package Dart] Полный Payload: $pushPayload");
-        await showCallFullScreenNotification(
-          callerName: pushPayload['caller_name'] ?? 'Неизвестный',
-          roomId: pushPayload['room_id'] ?? '',
-        );
-        final roomId = pushPayload['room_id'] ?? '';
-        if (roomId.isNotEmpty) {
-          //_connectToLiveKitRoom(roomId);
+      }
+
+      if (call.method == 'onCallAction') {
+        final payload = call.arguments as Map<dynamic, dynamic>;
+        final event = payload['event'];
+        if (event == 'accept') {
+          print("[Package Dart] Пользователь нажал accept на нативном экране Android: $payload");
+          final roomId = payload['room_id'] ?? '';
+          final callerName = payload['caller_name'] ?? 'Неизвестный';
+          if (roomId.isNotEmpty) {
+            print("[Package Dart] Пользователь принял звонок. Подключаемся к комнате LiveKit: $roomId");
+            await _connectToLiveKitRoom(roomId, callerName);
+          }
+        } else if (event == 'decline') {
+          print("[Package Dart] Пользователь нажал decline на нативном экране Android: $payload");
         }
-        
       }
 
       if (call.method == 'onVoIPTokenReceived') {
@@ -50,13 +56,14 @@ class IsolatedCallListener {
       if (call.method == 'onCallAccepted') {
         print("[Package Dart] Пуш звонка успешно долетел до Dart-изолята! ${call.method}");
         //print("[Package Dart] Полный Payload: ${call.arguments}");
-        final String roomId = call.arguments;
-        print('roomId = $roomId');
+        final String roomId = call.arguments['room_id'] ?? '';
+        final String callerName = call.arguments['caller_name'] ?? 'Неизвестный';
+        print('roomId = $roomId, callerName = $callerName');
         
         if (roomId.isNotEmpty) {
           // 3. Вызываем подключение к LiveKit прямо внутри этого изолята!
           print('Start connecting to $roomId');
-          await _connectToLiveKitRoom(roomId);
+          await _connectToLiveKitRoom(roomId, callerName);
         }
       }
     });
@@ -71,87 +78,10 @@ class IsolatedCallListener {
     }
   }
 
-  Future<void> showCallFullScreenNotification({
-    required String callerName,
-    required String roomId,
-  }) async {
-    final fln = FlutterLocalNotificationsPlugin();
-      final androidImplementation = fln.resolvePlatformSpecificImplementation<
-        AndroidFlutterLocalNotificationsPlugin>();
-        
-    if (androidImplementation != null) {
-      await androidImplementation.requestFullScreenIntentPermission();
-    }
-
-    const androidDetails = AndroidNotificationDetails(
-      'voip_calls_channel_id',
-      'Входящие вызовы',
-      channelDescription: 'Уведомления о входящих звонках',
-      importance: Importance.max,
-      priority: Priority.max,
-      category: AndroidNotificationCategory.call,
-      
-      // Вот эти параметры заставляют Android открыть fullScreenIntent:
-      fullScreenIntent: true,
-      ongoing: true, // Чтобы пользователь не смахнул случайным жестом
-      autoCancel: false,
-      audioAttributesUsage: AudioAttributesUsage.notificationRingtone,
-
-      // ДОБАВЛЯЕМ НАТИВНЫЕ КНОПКИ ДЛЯ ЗВОНКА:
-      actions: const <AndroidNotificationAction>[
-        AndroidNotificationAction(
-          'decline_call',
-          'Отклонить',
-          showsUserInterface: false,
-          cancelNotification: true,
-        ),
-        AndroidNotificationAction(
-          'accept_call',
-          'Ответить',
-          showsUserInterface: true, // Развернет приложение при нажатии
-          cancelNotification: true,
-        ),
-      ],
-    );
-
-    const platformDetails = NotificationDetails(
-      android: androidDetails,
-    );
-
-    await fln.show(
-      id: 1001, // Идентификатор уведомления звонка
-      title: 'Входящий звонок',
-      body: '$callerName звонит вам',
-      notificationDetails: platformDetails,
-      payload: roomId, // Передаем ID комнаты во Flutter
-    );
-  }
-
-  // Метод подключения к LiveKit
-  Future<void> _connectToLiveKitRoom(String roomId) async {
+  Future<void> _connectToLiveKitRoom(String roomId, String callerName) async {
     try {
       print("[Package Dart] Инициализируем аудиосессию для комнаты: $roomId");
-      //await LiveKitCallHandler.handleAcceptCall(roomId);
-
-      
-      
-      // Настраиваем звуковую подсистему для звонка
-      // await Hardware().selectAudioOutput(AudioOutput.earpiece);
-      
-      // // Инициализируем комнату LiveKit
-      // final room = Room();
-      
-      // // Токен для комнаты LiveKit вы должны сгенерировать на своем бэкенде 
-      // // и либо передавать прямо в data-пуше, либо быстро запрашивать по HTTP.
-      // // Пока подставьте сюда ваш тестовый токен генерации.
-      // String liveKitToken = 'ВАШ_LIVEKIT_TOKEN_ДЛЯ_КОМНАТЫ'; 
-      
-      // await room.connect('https://medgarant-spb.ru', liveKitToken);
-      
-      // // Автоматически включаем микрофон после успешного коннекта
-      // await room.localParticipant.setMicrophoneEnabled(true);
-      
-      //print("[Package Dart] Успешно подключились к LiveKit! Голосовой канал открыт.");
+      await LiveKitCallHandler.handleAcceptCall(roomId, callerName); // Передаем пустое имя звонящего, если оно не требуется
     } catch (e) {
       print("[Package Dart] Ошибка подключения к LiveKit: $e");
     }
