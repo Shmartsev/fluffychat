@@ -1,4 +1,5 @@
 import 'package:fluffychat/utils/additional_api/additional_api.dart';
+import 'package:fluffychat/utils/livekit/call_screen.dart';
 import 'package:fluffychat/utils/livekit/livekit_call_handler.dart';
 import 'package:flutter/material.dart';
 import 'package:livekit_client/livekit_client.dart';
@@ -8,8 +9,8 @@ class CallPage extends StatefulWidget {
   final String token;
   final String myId;
   final String peerId;
-  //final String callEventId;
-  final VoidCallback onEndCall;
+  final String peerName;
+  
 
   const CallPage({
     Key? key,
@@ -17,8 +18,9 @@ class CallPage extends StatefulWidget {
     required this.token,
     required this.myId,
     required this.peerId,
+    required this.peerName,
     //required this.callEventId,
-    required this.onEndCall,
+    
   }) : super(key: key);
 
   @override
@@ -29,9 +31,11 @@ class _CallPageState extends State<CallPage> {
   Room? _room;
   EventsListener<RoomEvent>? _listener;
   
-  bool _isConnected = false;
-  bool _isPeerJoined = false;
+  // bool _isConnected = false;
+  // bool _isPeerJoined = false;
   bool _isDisconnecting = false;
+
+  String _statusText = 'Инициализация...';
 
   @override
   void initState() {
@@ -41,7 +45,6 @@ class _CallPageState extends State<CallPage> {
   }
 
   Future<void> _initLiveKit() async {
-    
     LiveKitCallHandler.initForegroundTask();
     await LiveKitCallHandler.startCallService();
     
@@ -50,6 +53,7 @@ class _CallPageState extends State<CallPage> {
     }
 
     try {
+      setState(() => _statusText = 'Соединение с сервером...');
       final room = Room(roomOptions: RoomOptions(
         adaptiveStream: true,
         dynacast: true,
@@ -60,34 +64,50 @@ class _CallPageState extends State<CallPage> {
       _room = room;
       _listener = room.createListener();
 
-      // // Отслеживаем статус собеседника
-      // _listener?.on<RoomEvent>((event) {
-      //   if (!mounted) return;
-      //   setState(() {
-      //     _isPeerJoined = room.remoteParticipants.isNotEmpty;
-      //   });
-      // });
+     _listener?.on<ParticipantConnectedEvent>((event) {
+        _switchToActiveCallScreen();
+      });
 
-      //_listener?.on<ParticipantDisconnectedEvent>((_) => _disconnectAndExit());
-
-      // Коннект
+      _listener?.on<ParticipantDisconnectedEvent>((_) => _disconnectAndExit());
+      
+      setState(() => _statusText = 'Подключаюсь...');
       
       await room.connect(widget.url, widget.token);
-      
-      // Публикуем себя в аудиосеть
       await room.localParticipant?.setMicrophoneEnabled(true);
-      //await room.localParticipant?.setCameraEnabled(false);
-      
-      if (mounted) {
-        setState(() {
-          _isConnected = true;
-          _isPeerJoined = room.remoteParticipants.isNotEmpty;
-        });
-      }
+      setState(() => _statusText = '${widget.peerName} подключается...');
     } catch (e) {
       print('Ошибка LiveKit: $e');
       _disconnectAndExit();
     }
+  }
+
+  void _switchToActiveCallScreen() {
+    if (!mounted || _room == null) return;
+
+    // Снимаем listener, чтобы он не сработал повторно
+    _listener?.dispose();
+    _listener = null;
+
+    // Подменяем CallPage на CallScreen, передавая созданную комнату Room
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (context) => CallScreen(
+          callerName: widget.peerName,
+          room: _room!, // Передаем живую сессию WebRTC
+          onEndCall: () async {
+            await _room?.disconnect();
+            await AdditionalApi.instance.hangupCall(
+              participantId: widget.myId,
+              targetParticipantId: widget.peerId,
+            );
+            LiveKitCallHandler.stopCallService();
+            if (Navigator.canPop(context)) {
+              Navigator.of(context).pop();
+            }
+          },
+        ),
+      ),
+    );
   }
 
   Future<void> _disconnectAndExit() async {
@@ -114,7 +134,7 @@ class _CallPageState extends State<CallPage> {
   @override
   void dispose() {
     _listener?.dispose();
-    _room?.disconnect();
+    //_room?.disconnect();
     super.dispose();
   }
 
@@ -126,15 +146,21 @@ class _CallPageState extends State<CallPage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.person, size: 100, color: Colors.white54),
-            const SizedBox(height: 24),
+            CircleAvatar(
+              radius: 50,
+              backgroundColor: Colors.white12,
+              child: Text(
+                widget.peerName.isNotEmpty ? widget.peerName[0].toUpperCase() : '?',
+                style: const TextStyle(fontSize: 40, color: Colors.white),
+              ),
+            ),
             Text(
-              _isPeerJoined ? 'Разговор...' : 'Вызов...',
+              widget.peerName,
               style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 8),
             Text(
-              !_isConnected ? 'Подключение к серверу...' : (_isPeerJoined ? 'На связи' : 'Ожидание...'),
+              _statusText,
               style: const TextStyle(color: Colors.white70, fontSize: 16),
             ),
             const SizedBox(height: 100),

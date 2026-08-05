@@ -79,23 +79,30 @@ class FcmPushService : FcmSharedIsolateService() {
 
         // Intent, который запустит/развернет вашу MainActivity
         val intent = Intent(context, MainActivity::class.java).apply {
-            action = "ACTION_INCOMING_CALL"
+            action = "ACTION_SHOW_INCOMING_CALL"
             putExtra("room_id", roomId)
             putExtra("caller_name", callerName)
             // Флаги пробивают заблокированный экран и поднимают инстанс
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
         }
+
+        val showIncomingUiPendingIntent = PendingIntent.getActivity(
+            context, 
+            1001, // 👈 Уникальный RequestCode!
+            intent, 
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
+        )
 
         val acceptIntent = Intent(context, MainActivity::class.java).apply {
             action = "ACTION_INCOMING_CALL"
             putExtra("room_id", roomId)
             putExtra("caller_name", callerName)
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
         }
 
         val acceptPendingIntent = PendingIntent.getActivity(
             context,
-            1001,
+            1002,
             acceptIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
@@ -110,12 +117,12 @@ class FcmPushService : FcmSharedIsolateService() {
 
         val declinePendingIntent = PendingIntent.getBroadcast(
             context,
-            1002,
+            1003,
             declineIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val channelId = "voip_calls_v5"
+        val channelId = "voip_calls_v7"
         val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
 
         // Создаем High Priority канал для вызовов
@@ -156,7 +163,7 @@ class FcmPushService : FcmSharedIsolateService() {
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .setAutoCancel(true)
             // Магия WhatsApp: нативный PendingIntent открывает полноэкранный UI без блокировок
-            .setFullScreenIntent(acceptPendingIntent, true)
+            .setFullScreenIntent(showIncomingUiPendingIntent, true)
             .setStyle(
                 NotificationCompat.CallStyle.forIncomingCall(caller, declinePendingIntent, acceptPendingIntent)
             )

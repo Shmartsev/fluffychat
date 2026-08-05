@@ -184,7 +184,7 @@ class BackgroundPush {
   }
   
   @pragma('vm:entry-point')
-  void backgroundListener() {
+  void _backgroundListener() {
     IsolatedCallListener().startListening();
     print("[Package Dart] Слушатель VoIP канала успешно запущен и готов к приему!");
   }
@@ -376,7 +376,7 @@ class BackgroundPush {
         
         //final _apnsToken = await firebase.getApnsToken();
         //print('APNs token: $_apnsToken');
-        backgroundListener();
+        _backgroundListener();
         if (_fcmToken == null) {
           throw ('PushToken is null');
         } else {

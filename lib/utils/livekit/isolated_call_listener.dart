@@ -27,16 +27,18 @@ class IsolatedCallListener {
       if (call.method == 'onCallAction') {
         final payload = call.arguments as Map<dynamic, dynamic>;
         final event = payload['event'];
+        final roomId = payload['room_id'] ?? '';
+        final callerName = payload['caller_name'] ?? 'Неизвестный';
         if (event == 'accept') {
           print("[Package Dart] Пользователь нажал accept на нативном экране Android: $payload");
-          final roomId = payload['room_id'] ?? '';
-          final callerName = payload['caller_name'] ?? 'Неизвестный';
+          
           if (roomId.isNotEmpty) {
             print("[Package Dart] Пользователь принял звонок. Подключаемся к комнате LiveKit: $roomId");
             await _connectToLiveKitRoom(roomId, callerName);
           }
         } else if (event == 'decline') {
           print("[Package Dart] Пользователь нажал decline на нативном экране Android: $payload");
+          await _disconnectFromLiveKitRoom(roomId, callerName);
         }
       }
 
@@ -85,5 +87,9 @@ class IsolatedCallListener {
     } catch (e) {
       print("[Package Dart] Ошибка подключения к LiveKit: $e");
     }
+  }
+  
+  Future<void> _disconnectFromLiveKitRoom(roomId, callerName) async {
+    print('[Package Dart] Пользователь отклонил звонок. Написать на бэкенд, что звонок отклонен. roomId: $roomId, callerName: $callerName');
   }
 }

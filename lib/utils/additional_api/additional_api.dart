@@ -502,6 +502,10 @@ class AdditionalApi {
     required String targetParticipantId,
     required String participantName,
   }) async {
+    
+    final environment = kReleaseMode ? 'prod' : 'dev';
+    print('Creating call token for $participantId to $targetParticipantId in environment: $environment');
+    
     final response = await http.post(
       Uri.parse('https://mg-backend.it-ivs.ru/mg-backend/livekit/dial_call'),
         headers: {

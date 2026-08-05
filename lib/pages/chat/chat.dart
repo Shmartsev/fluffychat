@@ -1353,6 +1353,9 @@ class ChatController extends State<ChatPageWithRoom>
       final profile = await room.client.getUserProfile(myId);
       final myName = profile.displayname ?? myId;
 
+      final peerProfile = await room.client.getUserProfile(peerId);
+      final peerName = peerProfile.displayname ?? peerId;
+
       // 2. Вызываем твой новый API (AdditionalApi)
       // Показываем лоадер, если нужно
       final callData = await AdditionalApi.instance.createCallToken(
@@ -1387,8 +1390,7 @@ class ChatController extends State<ChatPageWithRoom>
             token: callData['token'],
             myId: myId,
             peerId: peerId,
-            //callEventId: eventId
-            onEndCall: Navigator.of(context).pop, // Закрываем экран звонка по завершении
+            peerName: peerName,
           ),
         ),
       );

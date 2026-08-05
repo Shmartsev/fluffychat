@@ -1,14 +1,17 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:livekit_client/livekit_client.dart';
 
 class CallScreen extends StatefulWidget {
   final String callerName;
+  final Room room;
   final VoidCallback onEndCall;
 
   const CallScreen({
     super.key,
     required this.callerName,
+    required this.room,
     required this.onEndCall,
   });
 
@@ -130,6 +133,7 @@ class _CallScreenState extends State<CallScreen> {
                           _isMuted = !_isMuted;
                         });
                         // TODO: LiveKit -> room.localParticipant?.setMicrophoneEnabled(!_isMuted);
+                        widget.room.localParticipant?.setMicrophoneEnabled(!_isMuted);
                       },
                     ),
 
@@ -158,6 +162,9 @@ class _CallScreenState extends State<CallScreen> {
                           _isSpeakerOn = !_isSpeakerOn;
                         });
                         // TODO: LiveKit / Hardware audio route switch
+                        if (lkPlatformIsMobile()) {
+                          Hardware.instance.setSpeakerphoneOn(_isSpeakerOn);
+                        }
                       },
                     ),
                   ],

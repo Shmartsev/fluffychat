@@ -21,7 +21,7 @@ class CallNotificationReceiver : BroadcastReceiver() {
             CallIntentHandler.handleIntent(context, intent)
         }
         // if (intent.action == "ACTION_DECLINE_CALL") {
-        //     val notificationId = intent.getIntExtra("notification_id", 1001)
+        //     val notificationId = intent.getIntExtra("notification_id", 1003)
         //     val roomId = intent.getStringExtra("room_id") ?: ""
         //     val callerName = intent.getStringExtra("caller_name") ?: ""
         //     val notificationManager = context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager

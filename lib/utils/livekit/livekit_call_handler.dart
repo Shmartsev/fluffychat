@@ -75,7 +75,6 @@ class LiveKitCallHandler {
     final token = callData['token']?.toString() ?? '';
     final myId = callData['userId'].toString();
     final peerId = callData['peerId'].toString();
-    //final callerName = callData['caller_name'].toString();
 
     _currentMyId = myId;
     _currentPeerId = peerId;
@@ -89,17 +88,7 @@ class LiveKitCallHandler {
 
     print("[LiveKitCallHandler] Starting CallPage continued");
 
-    connectActiveCall(url, token);
-
-    final navState = FluffyChatApp.router.routerDelegate.navigatorKey.currentState;
-    navState?.push(
-      MaterialPageRoute(
-        builder: (context) => CallScreen(
-          callerName: callerName,
-          onEndCall: navState.pop
-        ),
-      ),
-    );
+    connectActiveCall(url, token, callerName);
     
   }
 
@@ -111,7 +100,7 @@ class LiveKitCallHandler {
     }
   }
 
-  static Future<void> connectActiveCall(String url, String token) async {
+  static Future<void> connectActiveCall(String url, String token, String callerName) async {
     if (_currentMyId == null || _currentPeerId == null) return;
     initForegroundTask();
     await startCallService();
@@ -120,6 +109,7 @@ class LiveKitCallHandler {
       token: token,
       myId: _currentMyId!,
       peerId: _currentPeerId!,
+      callerName: callerName,
     );
   }
 
@@ -133,6 +123,7 @@ class LiveKitCallHandler {
     required String token,
     required String myId,
     required String peerId,
+    required String callerName,
   }) async {
     try {
       print("📞 Инициализация фонового Room...");
@@ -182,7 +173,16 @@ class LiveKitCallHandler {
       //print("Connected to LiveKit. Публикуем микрофон...");
       await room.localParticipant?.setMicrophoneEnabled(true);
       
-      
+      final navState = FluffyChatApp.router.routerDelegate.navigatorKey.currentState;
+      navState?.push(
+        MaterialPageRoute(
+          builder: (context) => CallScreen(
+            callerName: callerName,
+            room: room,
+            onEndCall: navState.pop
+          ),
+        ),
+      );
       
     } catch (e) {
       print("❌ Ошибка LiveKit соединения: $e");
